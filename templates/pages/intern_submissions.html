@@ -1,0 +1,210 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="container">
+    <ul class="nav nav-tabs nav-justified mt-3" style="min-width:400px;">
+        <li class="nav-item" >
+          <a class="nav-link active" data-bs-toggle="tab" href="#reports">Reports</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="tab" href="#requests">Requests</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#projects">Projects</a>
+          </li>
+    </ul>
+
+    <div class="tab-content">
+    
+        <div  class="tab-pane active" id="reports"> 
+           <div class="container card"style="height:100vh;min-width:450px; background: #F5F5F5;border-color: rgba(106, 140, 112, 1);" > 
+                <div class="card-body mt-4">
+
+                    <div class="d-flex flex-wrap mt-2 mb-4">
+                            <table class="table table-hover table-responsive" style="border-color: rgba(106, 140, 112, 1);">
+                                <tbody>
+                                    {%if reports%}
+                                    {% for item in reports %}
+                                    <tr class="clickable" onclick="window.location='/view/report/{{item._id}}'">
+                                        <td>{{item.title}}</td>
+                                        <td style="font-size:smaller;">{{item.date_submitted}}</td>
+                                        {% if user_profile.uid != item.sender["uid"] %}<td> <i style="font-size:smaller;">by</i> {{item.sender["uid"]}}</td>{% endif %}
+                                        <td style="font-size:smaller;">{{item.status}}</td>
+                                    </tr>
+                                
+                                    {% endfor %}
+                                    {%else%}
+                                    <tr>
+                                        <td>Dummy report</td>
+                                        <td><p style="font-size:smaller;">10 minutes ago</p></td>
+                                        <td><i>by dummy</i></td>
+                                    </tr>
+                                    {%endif%}
+                                </tbody>
+                            </table>
+        
+        
+                    </div>
+                </div>      
+            </div>          
+        </div>
+    </div>
+
+    <div class="tab-content" style="background: #F5F5F5;border-color: rgba(106, 140, 112, 1);">
+    
+        <div  class="tab-pane fade" id="requests"> 
+           <div class="container card"style="height:100vh;min-width:400px;background: #F5F5F5;" > 
+                <div class="card-body mt-4">
+
+                    <div class="d-flex flex-wrap mt-2 mb-4">
+                            <table class="table  table-hover table-responsive" style="border-color: rgba(106, 140, 112, 1);">
+                                <tbody>
+                                    {%if requests%}
+                                    {% for item in requests %}
+                                    <tr class="clickable" onclick="window.location='/view/request/{{item._id}}'">
+                                        <td>{{item.type}}</td>
+                                        <td style="font-size:smaller;">{{item.date_submitted}}</td>
+                                        {%if user_profile.role=="Lead" and user_profile.stack== item.recipient["position"]%}<td><i style="font-size:smaller;">by</i> {{item.sender["uid"]}}</td>{% endif %}
+                                        {%if user_profile.role== item.recipient["position"]%}<td><i style="font-size:smaller;">by</i> {{item.sender["uid"]}}</td>{% endif %}
+                                        <td style="font-size:smaller;">{{item.status}}</td>
+                                    </tr>
+                                
+                                    {% endfor %}
+                                    {%else%}
+                                    <tr>
+                                        <td>Dummy request</td>
+                                        <td><p style="font-size:smaller;">10 minutes ago</p></td>
+                                        <td><i>by dummy</i></td>
+                                    </tr>
+                                    {%endif%}
+                                </tbody>
+                            </table>
+        
+        
+                    </div>
+                </div>      
+            </div>          
+        </div>
+    </div>
+
+    <div class="tab-content">
+    
+        <div  class="tab-pane fade" id="projects"> 
+           <div class="container card"style="height:100vh; min-width:400px;background: #F5F5F5;border-color: rgba(106, 140, 112, 1);" > 
+                <div class="card-body mt-4">
+
+                    <div class="d-flex flex-wrap mt-2 mb-4">
+                      {%if user_profile.role !="Intern"%}<button type="button" class="border-0 mb-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#newProject" style="background: rgba(155, 178, 160, 1); width:150px; height:30px"><i class="bi bi-plus-square-fill me-2"></i>New project</button>{%endif%}
+                            <table class="table table-hover table-responsive" style="border-color: rgba(106, 140, 112, 1);">
+                                <tbody>
+                                    {%if projects%}
+                                    {% for item in projects %}
+                                    <tr class="clickable" onclick="window.location='/view/project/{{item._id}}'">
+                                        <td>{{item.topic}}</td>
+                                        <td style="font-size:smaller;">{{item.date_created}}</td>
+                                        {% if user_profile.uid !=item.sender["uid"] %}<td><i style="font-size:smaller;">by </i> {{item.sender["uid"]}}</td>{% endif %}
+                                        {%if "no_submissions" in item%}<td><span  class="badge rounded-pill bg-primary">{{item.no_submissions}}</span> submissions</td>
+                                        {% else %}<td><span  class="badge rounded-pill bg-primary">0</span> submissions</td>{% endif %}
+
+                                    
+                                    </tr>
+                                
+                                    {% endfor %}
+                                    {%else%}
+                                    <tr>
+                                        <td>Dummy project</td>
+                                        <td><p style="font-size:smaller;">10 minutes ago</p></td>
+                                        <td><span  class="badge rounded-pill bg-primary">0</span> submissions</td>
+                                    </tr>
+                                    {%endif%}
+                                </tbody>
+                            </table>
+        
+        
+                    </div>
+                </div>      
+            </div>          
+        </div>
+    </div>
+
+
+
+
+</div>
+
+
+<!-- The Modal -->
+<div class="modal fade" id="newProject">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background: rgba(205, 217, 207, 1);">
+
+      <!-- Modal Header -->
+      <div class="modal-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        <h4 class="modal-title">Create a new project</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+    <form action='/submissions/create/projects' method="post">
+      <!-- Modal body -->
+      <div class="modal-body">
+        <div class="row mb-3 mt-3">
+            <div class="col" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <h6 class="modal-title">Topic</h6>
+              <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="e.g Security System Alert" name="topic" required>
+            </div>
+          </div>
+
+          <div class="row mb-3 mt-3">
+            <div class="col" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <h6 class="modal-title">Focus</h6>
+              <textarea type="textarea" rows="4" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="focus" placeholder="State focus" required></textarea>
+            </div>
+          </div>
+
+          <div class="row mb-3 mt-3">
+            <div class="col" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <h6 class="modal-title">Objectives</h6>
+              <textarea type="textarea"  rows="4" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="objectives" placeholder="State objectives" required></textarea>
+            </div>
+          </div>
+          
+          <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Assigned to</h6>
+              <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="recipient" required>
+                {% if user_profile.role !="Admin" %}<option value ="{{user_profile.stack}}">all stack members </option>{%endif%}
+                {%if personnels%}
+                {% for it in personnels%}
+                <option value="{{it._id}}" >{{it.uid}}</option>
+                {%endfor%}
+                {%endif%}
+              </select>
+            </div>
+          </div>
+
+          <div class="row mb-3 mt-3">
+            <div class="col" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <h6 class="modal-title">Deadline</h6>
+              <input type="datetime-local" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="deadline" required>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Create</button>
+          </div>
+      </div>
+    </form>
+      
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+{% endblock content %}
+
+
+

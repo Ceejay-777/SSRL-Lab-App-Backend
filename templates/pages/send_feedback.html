@@ -1,0 +1,34 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="container">
+<div class="card mt-5 mb-3" style="min-height:100vh; min-width:400px; background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+<div class="card-header" style="border-color: rgba(106, 140, 112, 1);">
+    <h5 class="card-title">Send a feedback to {{submission.uid}}<h5>
+</div>
+<div class="card-body">
+    <form action="/submit/feedback/{{submission.project_id}}/{{submission.id}}" method="post">
+    <div class="row mb-3 text-center">
+        <div class="col" >
+          <h6 class="card-title">{{project.topic}}</h6>
+        </div>
+      </div>
+      <div class="row mb-3 mt-3">
+        <div class="col">
+          <h6 class="card-title">Feedback</h6>
+          <textarea type="textarea "  name="feedback" rows="10" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" required>{{submission.feedback}}</textarea>
+        </div>
+    </div>
+    <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Send</button>
+
+    
+
+</div>
+</div>
+</div>
+
+
+{% endblock content %}
+
+
+

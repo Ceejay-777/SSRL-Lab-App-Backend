@@ -1,0 +1,249 @@
+{% extends 'layouts/base.html' %}
+
+{% block  content %}
+<!-- Nav tabs -->
+<div class=" container d-flex flex-column justify-content-center">
+  
+    <ul class="nav nav-tabs nav-justified mt-3"style="min-width:400px;">
+        <li class="nav-item">
+          <a class="nav-link active" data-bs-toggle="tab" href="#profile">Profile</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="tab" href="#email">Email</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="tab" href="#security">Security</a>
+        </li>
+       
+    </ul>
+
+      <div class="tab-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        <div  class="tab-pane container fade" id="email">  
+            <div class="card container mb-2" style="height:100vh;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <div class="card-body container mt-3">
+                <form action="/update/email", method="post">
+                  <div class="mb-3">
+                    <label for="pwd" class="form-label"><h6>Password:</h6></label>
+                    <input type="password" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="pwd" placeholder="Enter your password" name="pwd">
+                  </div>
+
+                  <div class="mb-3 mt-3">
+                    <label for="new_email" class="form-label"><h6>New Email address:</h6></label>
+                    <input type="email" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="new_email" placeholder="Enter new email address" name="new_email">
+                  </div>
+                  <div class="mb-3 mt-3">
+                    <label for="confirm_email" class="form-label"><h6>Confirm Email address:</h6></label>
+                    <input type="email" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="confirm_email" placeholder="Confirm email address" name="confirm_email">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+
+              </div>
+            </div>
+        </div>
+
+        <div  class="tab-pane container fade" id="security" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">  
+          <div class="card container mb-2" style="height:100vh; min-width:400px;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+            <div class="card-body container mt-3">
+              <form action="/update/password", method="post">
+                
+                <div class="mb-3">
+                  <label for="old_pwd" class="form-label" ><h6>Old password:</h6></label>
+                  <input type="password" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="old_pwd" placeholder="Enter old password" name="old_pwd">
+                </div>
+
+                <div class="mb-3 mt-3">
+                  <label for="new_pwd" class="form-label"><h6>New password:</h6></label>
+                  <input type="password" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="old_email" placeholder="Enter new password" name="new_pwd">
+                </div>
+                <div class="mb-3 mt-3">
+                  <label for="confirm_pwd" class="form-label"><h6>Confirm new password:</h6></label>
+                  <input type="password" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="confirm_pwd" placeholder="Confirm password" name="confirm_pwd">
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+              </form>
+
+            </div>
+          </div>
+      </div>
+
+
+        <div  class="tab-pane container active" id="profile" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">  
+            <div class="card mb-2" style="height:100vh; min-width:400px; background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <div class="container card-image-top mt-5">
+                  <div class="text-end"><button type="button" class="btn me-2"  style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil me-2"></i>Edit profile</button></div>
+                  <div class="d-flex flex-center justify-content-center">
+                      <div>
+                          <img src="{{user_profile.avatar}}" class="rounded-circle shadow mb-3" style="width: 200px; height:200px;"alt="Avatar"/>
+                          <div class="text-center">
+                          <h5 class="mb-2"><strong>{{user_profile.fullname}}</strong></h5>
+                          {% if user_profile.niche %}<p class="text-muted">{{user_profile.niche}} {% endif %} <span class="badge bg-primary">{{user_profile.role}}</span></p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              
+              <div class="card-body d-flex flex-column flex-wrap" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+                  
+                    <h5 class="card-title">Bio</h5>
+                {%if user_profile.bio %}
+                  <p class="card-text">{{user_profile.bio}}</p>
+                  {% else %}
+                    <p class="card-text">NIL</p>
+                    {% endif %}
+                    <div class="d-flex flex-direction-column mb-3">
+                  <i class="bi bi-balloon-fill me-2"></i>
+                  {% if user_profile.bday %}<p class="card-text">{{user_profile.bday}}</p>
+                  {% else %}
+                    <p class="card-text">NIL</p>
+                  {% endif %}
+                </div>
+                <div class="d-flex flex-direction-column mb-3">
+                  <i class="bi bi-geo-alt-fill me-2"></i>
+                  {%if user_profile.location %}<p class="card-text">{{user_profile.location}}</p>
+                  {% else %}
+                  <p class="card-text">NIL</p>
+                  {% endif %}
+                  </div>
+                  <div class="d-flex flex-direction-column mb-3">
+                      <i class="bi bi-telephone-fill me-2"></i>
+                      {%if user_profile.phone_num %}<p class="card-text">{{user_profile["phone_num"]}}</p>
+                      {% else %}
+                        <p class="card-text">NIL</p>
+                      {% endif %}
+                  </div>
+                  <div class="d-flex flex-direction-column mb-3">
+                      <i class="bi bi-envelope-at-fill me-2"></i>
+                      {%if user_profile.email %}<p class="card-text">{{user_profile["email"]}}</p>
+                      {% else %}
+                      <p class="card-text">NIL</p>
+                      {% endif %}
+                  </div>
+                <div class="d-flex flex-direction-column mb-3">
+                      <i class="bi bi-check-circle-fill me-2"></i></i>
+                      {%if user_profile.datetime_created %}<p class="card-text">Since {{user_profile.datetime_created}}</p>
+                      {% else %}
+                      <p class="card-text">NIL</p>
+                      {% endif %}
+                  </div> 
+            </div>
+        </div> 
+        
+</div>
+</div>
+</div>
+<!-- The Modal -->
+<div class="modal fade" tabindex="-1"id="editModal">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content d-flex " style="max-width:600px;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        {% if user_profile.role=="Admin" %}
+        <form action="/admin/edit/profile/{{user_profile._id}}" enctype="multipart/form-data" method="post">
+        {% else %}
+        <form action="/user/edit/profile" enctype="multipart/form-data" method="post">
+        {% endif %}
+        
+        <!-- Modal Header -->
+        <div class="modal-header d-flex flex-direction-center" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+          <h4 class="modal-title">Edit profile</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <!-- Modal body -->
+        <div class="modal-body">
+         
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Firstname</h6>
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="First name" name="firstname" value="{{user_profile.firstname}}" {% if user_profile.role != "Admin"%}readonly{%endif%} required>
+              </div>
+              <div class="col">
+                <h6 class="modal-title">Surname</h6>
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="Surname" name="surname" value="{{user_profile.surname}}" {% if user_profile.role != "Admin"%}readonly{%endif%} required>
+              </div>
+            </div>
+            
+            <div class="row mb-3 mt-3">
+              {%if user_profile.role != "Admin"%}
+              <div class="col">
+                <h6 class="modal-title">Unique ID</h6>
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);"  name="uid" value="{{user_profile.uid}}" {% if user_profile.role != "Admin" %}readonly{%endif%} required>
+              </div>
+              {% endif %}
+              
+              {% if user_profile.role == "Admin" %}
+              <div class="col">
+                <h6 class="modal-title">Role</h6>
+                <select class="form-select " style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="role"  {% if user_profile.role != "Admin" %}readonly{%endif%} required>
+                  <option value="Intern" {% if user_profile.role == "Intern" %}selected{%endif%}>Intern</option>
+                  <option value="Mentor"{% if user_profile.role == "Mentor" %}selected{%endif%}>Mentor</option>
+                  <option value="Lead" {% if user_profile.role == "Lead" %}selected{%endif%}>Lead</option>
+                  <option value="Admin" {% if user_profile.role == "Admin" %}selected{%endif%}>Admin</option>
+                </select>
+              </div>
+            </div> 
+            
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Stack</h6>
+                 <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="stack"  required>
+                  <option value="Software" {% if user_profile.stack == "Software" %}selected{%endif%}>Software</option>
+                  <option value="Hardware"{% if user_profile.stack == "Hardware" %}selected{%endif%}>Hardware</option>
+                </select>
+              </div>
+              <div class="col">
+                <h6 class="modal-title">Niche</h6>
+                <select class="form-select " style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="niche"  {% if user_profile.role != "Admin"  %}readonly{%endif%} required>
+                  <option value="Web development" {% if user_profile.niche == "web development" %}selected{%endif%}>Web development</option>
+                  <option value="app development"{% if user_profile.niche == "app development" %}selected{%endif%}>App development</option>
+                </select>
+              </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                  <h6 class="modal-title">Email address</h6>
+                  <input type="email" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="email address" name="email" value="{{user_profile.email}}"  required>
+                </div>
+            </div>
+            
+          {%endif%}
+            <div class="row mb-3">
+              <div class="col">
+                <h6 class="modal-title">Phone number</h6>
+                <input type="tel" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="Phone number" name="phone_num" value="{{user_profile.phone_num}}" >
+              </div>
+              <div class="col">
+                <h6 class="modal-title">Location</h6>
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="Location (State,Country)" name="location" value="{{user_profile.location}}"  required>
+              </div>
+          </div>
+            <div class="row mb-3">
+              <div class="col">
+                <h6 class="modal-title">Choose an avatar</h6>
+                <input type="file" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="inputGroupFile04" aria-describedby="inputGroupFileAddon04" aria-label="Upload" name="avatar">
+              </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                  <h6 class="modal-title">Date of birth</h6>
+                  <input type="date" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="Date of birth" name="bday" value="{{user_profile.DOB}}" >
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col">
+                  <h6 class="modal-title">Bio</h6>
+                  <textarea type="textarea" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="Bio" name="bio" >{{user_profile.bio}}</textarea>
+                </div>
+            </div>
+        </div>
+  
+        <!-- Modal footer -->
+        <div class="modal-footer"style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1)">
+          <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Update</button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+{% endblock  content %}

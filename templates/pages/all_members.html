@@ -1,0 +1,256 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<style>
+  .scrollable-menu {
+    height: auto;
+    width: auto;
+    max-width: 200px;
+    max-height: 200px;
+    overflow-x:hidden;
+}
+
+</style>
+    {% if user_profile.role != "Admin"%}
+    <div class=" container d-flex flex-wrap flex-column p-3 mb-3" >
+      <div class="card mt-4" style="min-height:100vh;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        
+      <div class="card-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+          <h5 class="card-title">Stack Members</h5>
+      </div>
+
+        <div class="card-body container p-5">
+          <div class="d-flex flex-wrap">
+            {%if members%}
+              {%for member in members%}
+                <div class="d-flex align-items-center me-3 mb-3"> 
+                  <a href="/show/profile/{{member._id}}" ><img src="{{member.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                  <div class="text-center">
+                    <h6>{{member.firstname}}</h6>
+                    <h6>{{member.niche}}</h6>
+                  </div>
+                </div>
+              {%endfor%}
+
+              {%else%}
+                <div class="d-flex align-items-center" style="margin:auto;">
+                  <a href=""><img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                </div>
+                <div class="d-flex align-items-center" style="margin:auto;">
+                  <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                  
+                </div>
+                
+                <div class="d-flex align-items-center" style="margin:auto;">
+                  <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                  
+                </div>
+
+                <div class="d-flex align-items-center" style="margin:auto;">
+                  <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                  
+                </div>
+           {%endif%}
+          </div>
+        </div>
+      </div>
+    </div>
+    {%endif%}
+
+
+
+  {% if user_profile.role =="Admin"%}
+    <div class=" container d-flex flex-column flex-wrap p-3 mb-3" >
+  
+        <ul class="nav nav-tabs nav-justified mt-3">
+            <li class="nav-item">
+              <a class="nav-link active" data-bs-toggle="tab" href="#software">Software</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#hardware">Hardware</a>
+            </li>
+        </ul>
+    
+          <div class="tab-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+    
+            <div  class="tab-pane active" id="software"> 
+              <div class="container card"style="min-height:100vh;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" > 
+                <div class="card-body mt-4">
+                    
+                    <div class="row">
+                      <div class="col">
+                        <h5 class="card-title">Leads</h5>
+                      </div>
+                      <div class="col text-end">
+                        <div class="dropdown">
+                          <button type="button" class="btn" data-bs-toggle="dropdown" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1)"><i class="bi bi-person-plus"></i></button>
+                            
+                            <ul class="dropdown-menu dropdown-menu-start scrollable-menu " style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+                              {%for intern in softinterns%}
+                              <div class="d-flex flex-row">
+                                  <li><a  class="dropdown-item" href="/Add/lead/{{intern.uid}}"><img src="{{intern.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:30px;height:30px;">{{intern.fullname}}</a>
+                                  
+                                  </li>
+                                </div>
+                              
+                              {%endfor%}
+                            </ul>
+                      
+                        </div>
+                      </div>
+                      
+                    </div>
+                    <div class="d-flex flex-wrap mt-4 mb-4">
+                      {% if softlead %}
+                        {%for lead in softlead%}
+                            <div class="d-flex align-items-center me-5 mb-3 ">
+                              <a href="/show/profile/{{lead._id}}"><img src="{{lead.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                              <div class="text-center">
+                                <h6>{{lead.firstname}}</h6>
+                                <h6>{{lead.niche}}</h6>
+                              </div>
+                            </div>
+                          
+                        {%endfor%}
+                      {%else%}
+                      <div class="d-flex align-items-center me-5 mb-3">
+                        <a href=""><img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                      </div>
+                      {%endif%}
+                    </div>
+                      
+                    <h5 class="card-title">Interns</h5>
+                    <div class="d-flex flex-wrap mt-4 mb-4">
+                      {%if softinterns %}
+                      
+                        {%for intern in softinterns%}
+                          <div class="d-flex align-items-center mb-3 me-3" >
+                              <a href="/show/profile/{{intern._id}}"><img src="{{intern.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                              <div class="text-center">
+                                <h6>{{intern.firstname}}</h6>
+                                <h6>{{intern.niche}}</h6>
+                              </div>
+                            </div>
+                        {%endfor%}
+                      {%else%}
+                          <div class="d-flex align-items-center"style="margin:auto;">
+                            <a href=""><img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                            
+                          </div>
+                          <div class="d-flex align-items-center " style="margin:auto;">
+                            <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                            
+                          </div>
+                          
+                          <div class="d-flex align-items-center " style="margin:auto;">
+                            <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                          </div>
+              
+                          <div class="d-flex align-items-center" style="margin:auto;">
+                            <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                            
+                          </div> 
+                      {%endif%}
+
+
+                    </div>
+                </div>
+
+              </div>
+    
+            </div>
+
+            <div  class="tab-pane container fade" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" id="hardware">  
+                    <div class="container card" style="min-height:100vh;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);"> 
+                <div class="card-body mt-4">
+                  <div class="row">
+                    <div class="col">
+                      <h5 class="card-title">Leads</h5>
+                    </div>
+                    <div class="col text-end">
+                      <div class="dropdown">
+                        <button type="button" class="btn" data-bs-toggle="dropdown" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1)" ><i class="bi bi-person-plus"></i></button>
+                          
+                          <ul class="dropdown-menu scrollable-menu" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+                            {%for intern in hardinterns%}
+                            <div class="d-flex flex-row">
+                                <li><a class="dropdown-item" href="/Add/lead/{{intern.uid}}"><img src="{{intern.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:30px;height:30px;">{{intern.fullname}}</a>
+                                
+                                </li>
+                              </div>
+                            
+                            {%endfor%}
+                          </ul>
+                    
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-flex flex-wrap mt-4 mb-4">
+                    {% if hardlead%}
+                      {%for lead in hardlead%}
+                          <div class="d-flex align-items-center me-5 mb-3 ">
+                            <a href="/show/profile/{{lead._id}}"><img src="{{lead.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                            <div class="text-center">
+                              <h6>{{lead.firstname}}</h6>
+                              <h6>{{lead.niche}}</h6>
+                            </div>
+                          </div>
+                      {%endfor%}
+                    {%else%}
+                    <div class="d-flex align-items-center me-5 mb-3">
+                      <a href=""><img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                    </div>
+                    {%endif%}
+                  </div>
+                      
+                    <h5 class="card-title">Interns</h5>
+                    <div class="d-flex flex-wrap mt-4 mb-4">
+                      {%if hardinterns %}
+                      
+                        {%for intern in hardinterns%}
+                          <div class="d-flex align-items-center mb-3 me-3">
+                              <a href="/show/profile/{{intern._id}}"><img src="{{intern.avatar}}" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                              <div class="text-center">
+                                <h6>{{intern.firstname}}</h6>
+                                <h6>{{intern.niche}}</h6>
+                              </div>
+                            </div>
+                        {%endfor%}
+                      {%else%}
+                          <div class="d-flex align-items-center" style="margin:auto;">
+                            <a href=""><img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;"></a>
+                            
+                          </div>
+                          <div class="d-flex align-items-center " style="margin:auto;">
+                            <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                            
+                          </div>
+                          
+                          <div class="d-flex align-items-center" style="margin:auto;">
+                            <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                          </div>
+              
+                          <div class="d-flex align-items-center" style="margin:auto;">
+                            <img src="/static/images/person.svg" class="rounded-circle bg-light me-2" alt="avatar" style="width:100px;height:100px;">
+                            
+                          </div> 
+                      {%endif%}
+
+                    </div>
+                </div>
+
+              </div>
+            </div>
+          
+
+          </div>
+            
+    </div>
+  
+    {%endif%}
+{% endblock content %}
+
+
+
+

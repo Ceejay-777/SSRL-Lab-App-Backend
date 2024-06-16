@@ -1,0 +1,72 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+    <div class="card container mb-2" style="height:100vh;min-width:400px;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+      <div class="card-body container mt-3">
+          <form action="/submissions/submit/request_form" method="post">
+          <div class="mb-3 mt-3">
+            <h6 class="card-title">Title</h6>
+            <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="title" placeholder="A request for personal leave">
+          </div>
+          <div class="mb-3 mt-3">
+            <h6 class="card-title">Type</h6>
+            <select class="form-select mt-3" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="type" required>
+                <option value="Equipment">Equipment usage form</option>
+                <option value="Leave">Leave form</option>
+              </select>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <h6 class="card-title">Equiment name</h6>
+            <select class="form-select mt-3" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="eqpt_id">
+              
+              {% for item in eqpts%}
+              <option value="None">None</option>
+                  <option value="{{item._id}}">{{item.name}}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <h6 class="card-title">Quantity</h6>
+            <input type="number" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="quantity">
+          </div>
+
+          <div class="mb-3 mt-3">
+            <h6 class="card-title">Duration</h6>
+            <div class="row">
+              <div class="col">
+                <h6 class="card-title text-muted">from:</h6>
+                  <input type="date" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="From" name="date_from" >
+              </div>
+              <div class="col">
+                <h6 class="card-title text-muted">to:</h6>
+                  <input type="date" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="To" name="date_to" >
+              </div>
+            </div> 
+          </div>
+
+        <div class="mb-3 mt-3">
+            <h6 class="card-title">Request purpose</h6>
+              <textarea class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" rows="5" name="purpose" required></textarea>
+        </div>
+
+        <div class="mb-3 mt-3">
+          <h6 class="card-title">To</h6> 
+          <select class="form-select mt-3" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="recipient" required>
+              <option value ="hardware">Hardware Lead</option>
+              <option value="software">Software Lead</option>
+              <option value="Admin">Principal Investigator</option>
+            </select>
+          </div>    
+            <button type="submit" class="btn " style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">SEND</button>
+      </div>
+  </div>
+
+
+
+
+{% endblock content %}
+
+
+

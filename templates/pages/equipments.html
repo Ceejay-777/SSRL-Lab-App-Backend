@@ -1,0 +1,298 @@
+{% extends 'layouts/base.html' %}
+{% block content %}
+
+<div class="container ">
+<ul class="nav nav-tabs nav-justified mt-5" style="width:auto; min-width:400px; ">
+    <li class="nav-item">
+      <a class="nav-link active" data-bs-toggle="tab" href="#available" >Available</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-decoration-none" data-bs-toggle="tab" href="#faulty">Faulty/Lost</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-decoration-none" data-bs-toggle="tab" href="#inventory">Inventory</a>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <div  class="tab-pane container active" id="available">
+        <table class="table table-bordered table-hover table-responsive" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+            <thead>
+                <tr>
+                    <th>TYPE</th>
+                    <th>EQUIPMENT NAME</th>
+                    <th>QUANTITY</th>
+                </tr>
+            </thead>
+            <tbody>
+                {%if availables%}
+                {% for item in availables %}
+                <tr class="clickable" onclick="window.location='/view/equipments/{{item._id}}'">
+                    <td>{{item.type}}</td>
+                    <td>{{item.name}}</td>
+                    <td>{{item.quantity}}</td>
+                </tr>
+            
+                {% endfor %}
+                {%endif%}
+            </tbody>
+        </table>
+    </div>
+
+    <div  class="tab-pane container fade" id="faulty">  
+        <button type="button" class="rounded-pill border-0 mt-3 mb-2" data-bs-toggle="modal" data-bs-target="#eqptfaulty" style="background: rgba(155, 178, 160, 1); width:150px; height:30px"><i class="bi bi-plus-square-fill me-2"></i>New record </button>
+        <table class="table table-bordered table-hover table-responsive" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+            <thead>
+                <tr>
+                    <th>TYPE</th>
+                    <th>NAME</th>
+                    <th>QUANTITY</th>
+                    <th>DATE REPORTED</th>
+                    <th>PERSONNEL</th>
+                    <th>STATUS</th>
+                </tr>
+            </thead>
+            <tbody>
+                {%if lost_eqpts %}
+                    {%for eqpt in lost_eqpts%}
+                    <tr class="clickable" onclick="window.location='/view/lost/equipment/{{eqpt._id}}'">
+                            <td>{{eqpt.type}}</td>
+                            <td>{{eqpt.name}}</td>
+                            <td>{{eqpt.quantity}}</td>
+                            <td>{{eqpt.date_reported}}</td>
+                            <td>{{eqpt.personnel_id}}</td>
+                            <td>{{eqpt.status}}</td>
+                        </tr>
+                    {%endfor%}
+                {%endif%}
+            </tbody>
+        </table>
+    </div>
+
+    <div  class="tab-pane container fade" id="inventory">  
+        
+        <div class="dropdown" >
+          <button type="button" class="rounded-pill border-0 mt-3 mb-2" href="" data-bs-toggle="dropdown" id="dropdownnav" aria-expanded="false" style="background: rgba(155, 178, 160, 1); width:150px; height:30px; padding:auto;"><i class="bi bi-plus-square-fill me-2"></i>Insert record</button>
+        <ul class="dropdown-menu dropdown-menu-grey text-small shadow" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" aria-labelledby="dropdownnav">
+          <li><a class="dropdown-item" href=""<button type="button"  data-bs-toggle="modal" data-bs-target="#eqptinventory" >new</button></a></li>
+          <li><a class="dropdown-item" href=""<button type="button"  data-bs-toggle="modal" data-bs-target="#existinginventory" >existing</button></a></li>
+        </ul>
+      </div>
+        <table class="table table-bordered table-hover table-responsive" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+            <thead>
+                <tr>
+                    <th>DATE</th>
+                    <th>TYPE</th>
+                    <th>ARRIVAL DATE</th>
+                    <th>NAME</th>
+                    <th>QUANTITY</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if inventory %}
+                    {% for eqpt in inventory %}
+                    <tr class="clickable" onclick="window.location='/view/equipments/{{eqpt.name["id"]}}'">
+                            <td>{{eqpt.datetime_inputed}}</td>
+                            <td>{{eqpt.type}}</td>
+                            <td>{{eqpt.date_of_arrival}}</td>
+                            <td>{{eqpt.name["name"]}}</td>
+                            <td>{{eqpt.quantity}}</td>
+                        </tr>
+                    
+                    {% endfor %}
+                {%endif%}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</div>
+
+
+<!-- The Modal -->
+<div class="modal fade" tabindex="-1" id="eqptinventory">
+    <div class="modal-dialog">
+      <div class="modal-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        <form action="/equipment/new" method="post">
+        <!-- Modal Header -->
+        <div class="modal-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+          <h4 class="modal-title">Record new equipment</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <!-- Modal body -->
+        <div class="modal-body">
+         
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Name of Equipment</h6>
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" placeholder="Enter equipment name" name="name" required>
+              </div>
+            </div>
+  
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Quantity</h6>
+                <input type="number" min="1" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="quantity" required>
+              </div>
+              <div class="col">
+                <h6 class="modal-title">Date of arrival</h6>
+                <input type="date" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="arrival"  required>
+              </div>
+            </div>
+            
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Type</h6>
+                <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="type" required>
+                  <option value="Tool" >Tool</option>
+                  <option value="Component">Component</option>
+                  <option value="Machine" >Machine</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="row mb-3 mt-3">
+                <div class="col">
+                  <h6 class="modal-title">Usage</h6>
+                  <textarea type="textarea" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="description" placeholder="Give a brief description"></textarea>
+                </div>
+              </div>
+            
+        </div>
+  
+        <!-- Modal footer -->
+        <div class="modal-footer" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+          <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Submit</button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<!-- The Modal -->
+<div class="modal fade" tabindex="-1" id="existinginventory">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+      <form action="/equipment/existing/input" method="post">
+      <!-- Modal Header -->
+      <div class="modal-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        <h4 class="modal-title">Record new equipment</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <!-- Modal body -->
+      <div class="modal-body">
+       
+          <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Name of Equipment</h6>
+              <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="eqpt_id" required>
+                {%if equipments%}
+                {% for item in equipments%}
+                <option value="{{item._id}}">{{item.name}}</option>
+                {% endfor %}
+                {%endif%}
+              </select>
+            </div>
+          </div>
+
+          <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Quantity</h6>
+              <input type="number" min="1" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="quantity" required>
+            </div>
+          </div>
+          <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Date of arrival</h6>
+              <input type="date" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="arrival"  required>
+            </div>
+          </div>
+          
+          
+          
+      </div>
+
+      <!-- Modal footer -->
+      <div class="modal-footer" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Submit</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+
+  <!-- The Modal -->
+<div class="modal fade" tabindex="-1" id="eqptfaulty">
+    <div class="modal-dialog">
+      <div class="modal-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+        <form action="/lost/equiment" method="post">
+        <!-- Modal Header -->
+        <div class="modal-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+          <h4 class="modal-title">Record faulty/lost equipment</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <!-- Modal body -->
+        <div class="modal-body">
+         
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Name of Equipment</h6>
+                <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="id" required>
+                    {%if equipments%}
+                    {% for item in equipments%}
+                    <option value="{{item._id}}" >{{item.name}}</option>
+                    {% endfor %}
+                    {%endif%}
+                  </select>
+              </div>
+            </div>
+  
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Quantity</h6>
+                <input type="number" min="1" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="quantity" required>
+              </div>
+              <div class="col">
+                <h6 class="modal-title">Personnel Responsible</h6>
+                <select class="form-select scrollable-menu" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="person_resp" required>
+                    {%if personnels%}
+                    {% for person in personnels %}
+                        <option value="{{person.uid}}">{{person.uid}}</option>
+                    {% endfor %}
+                    {%endif%}
+                  </select>
+              </div>
+            </div>
+            
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Status</h6>
+                <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);" name="status" required>
+                  <option value="Faulty" >Faulty</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </div>
+            </div> 
+            
+        </div>
+  
+        <!-- Modal footer -->
+        <div class="modal-footer" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+          <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Record</button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+
+
+{% endblock content %}

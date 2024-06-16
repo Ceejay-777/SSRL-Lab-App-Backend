@@ -1,0 +1,174 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="container">
+<div class="card mt-5 mb-3 " style="min-height:100vh; min-width:400px;background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); ">
+    <div class="card-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+        <h4 class="card-title"> Equipment details</h4>
+    </div>
+    <div class="card-body">
+        <div class="dropdown text-end">
+            <button type="button" class="btn" data-bs-toggle="dropdown" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " ><i class="bi bi-three-dots-vertical"></i></button>
+              
+              <ul class="dropdown-menu" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+                <li><a class="dropdown-item" href="/view/members"<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#editModal">Edit profile</button></a></li>
+                <li><a class="dropdown-item" href="/view/members"<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteEqpt">Delete lost equipment</button></a></li>
+              </ul>
+        
+          </div>
+    
+        <div class="row mb-3">
+            <div class="col">
+              <h6 class="modal-title">Name of Equipment</h6>
+              <input type="text" class="form-control" value="{{eqpt_dtls.name}} " style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  readonly>
+            </div>
+          </div>
+
+            <div class="row mb-3 mt-3">
+                <div class="col">
+                    <h6 class="modal-title">Type</h6>
+                    <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  value="{{eqpt_dtls.type}}" readonly>
+                </div>
+            </div>
+            
+            <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Status</h6>
+              <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "   value="{{eqpt_dtls.status}}" readonly>
+            </div>
+          </div>
+
+          <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Quantity faulty/lost</h6>
+              <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  value="{{eqpt_dtls.quantity}}" readonly>
+            </div>
+
+            <div class="row mb-3 mt-3">
+                <div class="col">
+                    <h6 class="modal-title">Personnel responsible</h6>
+                    <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  value="{{eqpt_dtls.personnel_id}}" readonly>
+                </div>
+            </div>
+
+            <div class="col">
+              <h6 class="modal-title">Date reported faulty/lost</h6>
+              <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  value="{{eqpt_dtls.date_reported}}" readonly>
+            </div>
+          </div>
+
+          
+          
+          
+    </div>
+
+</div>
+</div>
+
+
+ <!-- The Modal -->
+ <div class="modal" id="deleteEqpt">
+    <div class="modal-dialog">
+      <div class="modal-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+  
+        <!-- Modal Header -->
+        <div class="modal-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+          <h4 class="modal-title">{{eqpt_dtls.name}}</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <!-- Modal body -->
+        <div class="modal-body" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+          Are you sure you want to delete {{eqpt_dtls.name}}?
+        </div>
+  
+        <!-- Modal footer -->
+        <div class="modal-footer" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+          <a href="/delete/lost/equipment/{{eqpt_dtls._id}}"><button type="button" class="btn btn-danger" data-bs-dismiss="modal">Yes</button></a>
+        </div>
+  
+      </div>
+    </div>
+  </div>
+
+  <!-- The Modal -->
+  <div class="modal fade" tabindex="-1" id="editModal">
+    <div class="modal-dialog">
+      <div class="modal-content" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+        <form action="/edit/lost/equiment/{{eqpt_dtls._id}}" method="post">
+        <!-- Modal Header -->
+        <div class="modal-header" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+          <h4 class="modal-title">Edit faulty/lost equipment details</h4>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <!-- Modal body -->
+        <div class="modal-body" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+         
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Name of Equipment</h6>
+                <input type="text" class="form-control" name="name" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  value="{{eqpt_dtls.name}}" readonly>
+              </div>
+            </div>
+
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                  <h6 class="modal-title">Type</h6>
+                  <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  name="type" value="{{eqpt_dtls.type}}" readonly>
+              </div>
+          </div>
+
+          <div class="row mb-3 mt-3">
+            <div class="col">
+              <h6 class="modal-title">Status</h6>
+              <select class="form-select" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  name="status" required>
+                <option value="Faulty" >Faulty</option>
+                <option value="Lost">Lost</option>
+              </select>
+            </div>
+          </div> 
+  
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Quantity</h6> 
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  name="quantity" value="{{eqpt_dtls.quantity}}" readonly>
+              </div>
+              <div class="col">
+                <h6 class="modal-title">Date reported faulty/lost</h6>
+                <input type="text" class="form-control" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  name="date_reported" value="{{eqpt_dtls.date_reported}}" readonly>
+              </div>
+            </div>
+
+            <div class="row mb-3 mt-3">
+              <div class="col">
+                <h6 class="modal-title">Personnel Responsible</h6>
+                <select class="form-select scrollable-menu" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); "  name="person_resp" required>
+                    {%if personnels%}
+                    {% for person in personnels %}
+                        <option value="{{person.uid}}">{{person.uid}}</option>
+                    {% endfor %}
+                    {%endif%}
+                  </select>
+              </div>
+            </div>
+            
+            
+            
+        </div>
+  
+        <!-- Modal footer -->
+        <div class="modal-footer" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1); " >
+          <button type="submit" class="btn" style="background: linear-gradient(267.33deg, #386641 5.13%, #9BB2A0 94.79%);">Submit</button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  
+{% endblock content %}
+
+
+

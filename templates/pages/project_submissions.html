@@ -1,0 +1,55 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="container">
+<div class="card mt-5 mb-3" style="min-height:100vh; min-width:400px; background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+<div class="card-header" style="border-color: rgba(106, 140, 112, 1);">
+    <h5 class="card-title">Project submissions<h5>
+</div>
+<div class="card-body">
+    <div class="row mb-3 text-center">
+        <div class="col" >
+          <h6 class="card-title">{{topic}}</h6>
+        </div>
+      </div>
+{% if details %}
+{% for item in details %}
+    <div class="row mb-3 mt-3 ">
+        <div class="col" >
+        <h6 class="card-title" >{{item.uid}}</h6>
+        <div class="d-flex flex-direction-row">
+        <input type="text" class="form-control me-2" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);"  value="{{item.file_name}}" disabled><a href="/project/submissions/download/{{item.project_id}}/{{item.id}}"<button class="btn me-2" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);"><i class="bi bi-download"></i></button></a>
+           
+        </div>
+        </div>
+        <div class="col">
+          <h6 class="card-title" >status</h6>
+        <div class="d-flex flex-direction-row">
+        <input type="text" class="form-control me-2" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);"  value="{{item.status}}" disabled>
+        <div class="dropdown">
+          <button type="button" class="btn" data-bs-toggle="dropdown" style="border-color: rgba(106, 140, 112, 1); "><i class="bi bi-three-dots-vertical"></i></button>
+            
+            <ul class="dropdown-menu" style="background: rgba(205, 217, 207, 1); border-color: rgba(106, 140, 112, 1);">
+              <li><a class="dropdown-item" href="/project/completed/{{item.project_id}}/{{item.id}}"<button type="button" class="btn btn-secondary" >Mark completed</button></a></li>
+              <li><a class="dropdown-item" href="/project/incomplete/{{item.project_id}}/{{item.id}}"<button type="button" class="btn btn-secondary" >Mark incomplete</button></a></li>
+              <li><a class="dropdown-item" href="/project/send/feedback/{{item.project_id}}/{{item.id}}"<button type="button" class="btn btn-secondary">Feedback</button></a></li>
+            </ul>
+      
+        </div>
+      </div>
+        </div>
+    </div>
+{% endfor %}
+
+
+{% endif %}
+</div>
+</div>
+</div>
+
+
+
+{% endblock content %}
+
+
+
