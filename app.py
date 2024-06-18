@@ -80,38 +80,27 @@ def authenticate_user():
                 "message": f"Welcome! {user_profile['fullname']}",
                 "user_profile": user_profile
             }
-            # flash (f"Welcome! {fullname}", "success")
-            # return redirect(url_for('home'))
             return jsonify(response), 200
         else:
-            # flash("Invalid password", "danger")
-            # return redirect(url_for("login"))
             return jsonify({"message": "Invalid password"}), 401
     else:
-        # flash("Invalid log in ID", "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "Invalid login ID"}), 401
 
 @app.get('/logout')
 def logout():
     if "user_id" in session:
         session.pop("user_id", None)
-        # return redirect(url_for('login')) 
         return jsonify({"message": "Logged out successfully", "status": "info"}), 200 # Return to login
     else:
         return jsonify({"message": "You are not logged in!", "status": "danger"}), 400
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
 
 @app.get('/forgot/password')
 def forgot_password():
-    session["confirmed"]="false"
-    # return render_template('forms/forgot_password.html')
+    session["confirmed"]="false" # To forgot password page
     
 @app.post('/confirm/credentials')
 def confirm_credentials():
     status = session["confirmed"]
-    # status = request.json.get("confirmed", "false")
     
     if status == "false":
         uid = request.json.get("uid")
@@ -129,19 +118,13 @@ def confirm_credentials():
                     
                     session["uid"]=uid
                     session["otp"]=otp
-                    # flash("Check your email for the OTP","info")
-                    # return render_template('forms/confirm_otp.html')
 
                     response = {
                         "message": "Check your email for the OTP",
-                        "status": "info",
-                        # "uid": uid,
-                        "otp": otp
+                        "otp": otp #To confirm OTP page
                     }
                     return jsonify(response), 200
                 except Exception as exp:
-                    # flash("Unable to recover your account at the moment! Please confirm that the inputed email is correct or check your internet connection.", "danger")
-                    # return redirect(url_for('forgot_password'))
                     response = {
                         "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
                         "status": "danger",
@@ -149,16 +132,12 @@ def confirm_credentials():
                     }
                     return jsonify(response), 500
             else:
-                # flash("Please confirm that the inputed email is correct!", "danger")
-                # return redirect(url_for('forgot_password'))
                 response = {
                 "message": "Please confirm that the email is correct!",
                 "status": "danger"
             }
             return jsonify(response), 400
         else:
-            # flash("Please confirm that the inputed ID is correct!", "danger")
-            # return redirect(url_for('forgot_password'))
             response = {
                     "message": "Please confirm that the input ID is correct!",
                     "status": "danger"
@@ -166,12 +145,11 @@ def confirm_credentials():
             return jsonify(response), 400
     
     elif status == "true":
-        # return redirect(url_for('forgot_password'))
         response = {
             "message": "Already confirmed.",
             "status": "info"
         }
-        return jsonify(response), 200
+        return jsonify(response), 200 # Back to login
     
 
 @app.post('/confirm/otp')
@@ -185,20 +163,16 @@ def confirm_otp():
         if input_otp == otp:
             session.pop("otp", None)
             session["confirmed"] = "true"
-            # return render_template('forms/change_password.html')
             return jsonify({"message": "OTP confirmed. Proceed to change password."}), 200 # To change password
         else:
-            # flash("Invalid OTP!", "danger")
-            # return render_template('forms/confirm_otp,html')
             return jsonify({"message": "Invalid OTP!"}), 400
     elif status == "true":
-        # return redirect(url_for('forgot_password'))
         return jsonify({"message": "Already confirmed."}), 200 # Back to login
 
 @app.post('/change/password')
 def change_password():
     new_pwd = request.form.get("new_pwd")
-    # confirm_pwd = request.form.get("confirm_pwd")
+    # confirm_pwd = request.form.get("confirm_pwd") # Confirm in the frontend
     
     # if new_pwd == confirm_pwd:
     try: 
@@ -219,18 +193,10 @@ def change_password():
             "message": f"Password changed successfully! Welcome back {user_profile['fullname']}"
             }
             return jsonify(response), 200 # To homepage
-            # flash(f"Password changed successfully! Welcome back {fullname}", "success")
-            # return redirect(url_for('home'))
         else:
-            # flash("Unable to change your password! Try again", "danger")
-            # return render_template('forms/change_password.html')
             return jsonify({"message": "Unable to change your password! Try again"}), 500
     except Exception as e:
         return jsonify({"message": f"Something went wrong! Try again {e}"}), 500
-    # else:
-    #     # flash("Unmatching password input! Unable to update your password", "danger")
-    #     # return render_template('forms/change_password.html')
-    #     return jsonify({"message": "Unmatching password input! Unable to update your password"}), 400
 
 @app.get('/home/me')
 def home():
@@ -245,16 +211,6 @@ def home():
         
         now = datetime.now().strftime
         
-        # if now("%p") == "AM":
-        #     meridian = "morning"
-            
-        # elif int(now("%H")) >= int(12) and int(now("%H")) < int(16):
-        #     meridian = "afternoon"
-        
-        # else:
-        #     meridian = "evening"  //Frontend code
-            
-        taskCompleted = 0
         for td in all_todos:
             if td["completed"]==True:
                 if (td["date_time"]).strftime("%U")==datetime.now().strftime("%U"):
@@ -264,14 +220,6 @@ def home():
             else:
                 continue
             
-        # date = {
-        #     "day" : now("%A"),
-        #     "month" : now("%B"),
-        #     "date" : now("%d"),
-        #      "meridian" : meridian,
-        #      "taskCompleted": taskCompleted
-        # }
-        
         if user_role=="Admin":
             members = list(User_db.get_all_users_limited())
             reports = list(Report_db.get_by_recipient_limited(position=user_role))
@@ -303,8 +251,6 @@ def home():
                 
             members = list(User_db.get_users_by_stack_limited(stack))
             
-            # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, todos=todos, attendance=attendance)
-        
             response = {"taskCompleted" : taskCompleted, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance}
             return jsonify({response}), 200
         
@@ -315,17 +261,11 @@ def home():
             attendance = list(Attendance_db.get_attendance(user_id))
             members = list(User_db.get_users_by_stack_limited(stack))
             
-            # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, todos=todos, attendance=attendance)
-            
             response = {"taskCompleted" : taskCompleted,  "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance}
             return jsonify({response}), 200
         else:
-            # flash("permission not granted!", "danger")
-            # return redirect(url_for('login'))
             return jsonify({"message": "Permission not granted"}), 401
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in!"}), 401
 
 @app.get('/view/members') #Interns tab 
@@ -345,7 +285,6 @@ def view_members():
             hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
             
             app.logger.info(leads)
-            # return render_template('pages/all_members.html',softlead=softlead, hardlead=hardlead, softinterns=softinterns, hardinterns=hardinterns, user_profile=user_profile)
             return jsonify({
             "softlead": softlead,
             "hardlead": hardlead,
@@ -357,17 +296,12 @@ def view_members():
             members = list(User_db.get_users_by_stack(stack))
             app.logger.info(members)
             
-            # return render_template('pages/all_members.html',members=members, user_profile=user_profile)
             return jsonify({
             "members": members,
             }), 200
         else:
-            # flash("permission not granted!", "danger")
-            # return redirect(url_for('login'))
             return jsonify({"message": "Permission not granted"}), 401
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in!"}), 401
 
 @app.get('/show/profile/<requested_id>')
@@ -376,19 +310,12 @@ def show_user_profile(requested_id):
         user_role = session["user_role"]
         stack = session["stack"]
         requested_profile = User_db.get_user_by_oid(requested_id)
-        # current_user_id = session["user_id"]
-        # user_profile = User_db.get_user_by_oid(current_user_id)
         
         if user_role == "Admin" or (user_role== "Lead" and stack==requested_profile["stack"]):
-            # return render_template('pages/view_user_profile.html', requested_profile=requested_profile, user_profile=user_profile)
             return jsonify({"requested_profile" : requested_profile }), 200
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('login'))            
-            return jsonify({"message": f"Permission not granted, please contact the {"software" if stack == "Hardware" else "hardware"} lead or the admin"}), 401
+            return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin"}), 401
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in!"}), 401
     
 @app.post('/Admin/create/user')
@@ -429,20 +356,12 @@ def create_user():
             
                 user_id = User_db.create_user(usr)
                 
-                # flash(f"user {uid} created successfully","success")
-                # return redirect(url_for('show_user_profile', requested_id=user_id ))
                 return jsonify({"message" : f"user {uid} created successfully", "user_id" : user_id}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
             except:
-                # flash("Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "danger")
-                # return redirect(url_for('home'))
                 return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection."}), 500
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('login'))            
             return jsonify({"message": "Permission not granted"}), 403
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in"}), 403 #To login page
     
 @app.get('/view/profile/me')
@@ -450,11 +369,8 @@ def view_profile_me():
     if "user_id" in session:
         current_user_id = session["user_id"]
         user_profile = User_db.get_user_by_oid(current_user_id)
-        # return render_template('pages/view_profile.html', user_profile=user_profile, current_uid=current_user_id)           
         return jsonify({"user_profile" : user_profile}), 200 
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in"}), 403 #To login page
 
 @app.post('/user/edit/profile')
@@ -478,20 +394,12 @@ def user_edit_profile():
                     updated = User_db.update_user_profile_by_oid(user_id, dtls)
                 
                     if updated:
-                        # flash("profile updated successfully", "success")
-                        # return redirect(url_for('view_profile_me'))
                         return jsonify({"message": "profile updated successfully"}), 200
                     else:
-                        # flash("profile update unsuccessful!", "danger")
-                        # return redirect(url_for('view_profile_me'))
                         return jsonify({"message": "profile updated unsuccessful"}), 403
                 else:
-                    # flash("image upload error!", "danger")
-                    # return redirect(url_for('view_profile_me'))
                     return jsonify({"message": "profile updated unsuccessful"}), 403
             except:
-                # flash("Unable to update your profile at the moment! Please make sure you have a strong internet connection", "danger")
-                # return redirect(url_for('view_profile_me'))
                 return jsonify({"message": "image upload error!"}), 500
         else:
             user_profile = User_db.get_user_by_oid(user_id)
@@ -501,16 +409,10 @@ def user_edit_profile():
             updated = User_db.update_user_profile_by_oid(user_id, dtls)
             
             if updated:
-                # flash("profile updated successfully", "success")
-                # return redirect(url_for('view_profile_me'))
                 return jsonify({"message": "profile updated successfully"}), 200
             else:
-                # flash("profile update unsuccessful!", "danger")
-                # return redirect(url_for('view_profile_me'))
                 return jsonify({"message": "profile updated unsuccessful"}), 403
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in"}), 403 #To login page
 
 
@@ -549,20 +451,12 @@ def admin_edit_profile(edit_id):
                             updated = User_db.update_user_profile_by_oid(user_id, dtls)
                         
                             if updated:
-                                # flash("profile updated successfully", "success")
-                                # return redirect(url_for('view_profile_me'))
                                 return jsonify({"message": "profile updated successfully"}), 200
                             else:
-                                # flash("profile update unsuccessful!", "danger")
-                                # return redirect(url_for('view_profile_me'))
                                 return jsonify({"message": "profile updated unsuccessful"}), 403
                         else:
-                            # flash("image upload error!", "danger")
-                            # return redirect(url_for('view_profile_me'))
                             return jsonify({"message": "profile updated unsuccessful"}), 403
                     except:
-                        # flash("Unable to update your profile at the moment! Please make sure you have a strong internet connection", "danger")
-                        # return redirect(url_for('view_profile_me'))
                         return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection"}), 500
                 else:
                     user_profile = User_db.get_user_by_oid(user_id)
@@ -572,12 +466,8 @@ def admin_edit_profile(edit_id):
                     updated = User_db.update_user_profile_by_oid(user_id, dtls)
                     
                     if updated:
-                        # flash("profile updated successfully", "success")
-                        # return redirect(url_for('view_profile_me'))
                         return jsonify({"message": "profile updated successfully"}), 200
                     else:
-                        # flash("profile update unsuccessful!", "danger")
-                        # return redirect(url_for('view_profile_me'))
                             return jsonify({"message": "profile updated unsuccessful"}), 403
             else:
                 uid = generate.user_id(firstname)
@@ -591,21 +481,13 @@ def admin_edit_profile(edit_id):
 
                             updated = User_db.update_user_profile_by_oid(user_id, dtls)
                             if updated:
-                                # flash("profile updated successfully,", "success")
-                                # return redirect(url_for('view_profile_me'))
                                 return jsonify({"message": "profile updated successfully"}), 200
                             else:
-                                # flash("profile update unsuccessful!", "danger")
-                                # return redirect(url_for('view_profile_me'))
                                 return jsonify({"message": "profile updated unsuccessful"}), 403
                         else:
-                            # flash("image upload error!", "danger")
-                            # return redirect(url_for('view_profile_me'))
                             return jsonify({"message": "image upload error!"}), 403
                     
                     except:
-                        # flash("Unable to update your profile at the moment! Please make sure you have a strong internet connection", "danger")
-                        # return redirect(url_for('view_profile_me'))
                         return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection"}), 500
                 else:
                     user_profile = User_db.get_user_by_oid(user_id)
@@ -620,16 +502,10 @@ def admin_edit_profile(edit_id):
                         
                         updated = User_db.update_user_profile_by_oid(user_id, dtls)
                         if updated:
-                            # flash("Profile updated successful!", "success")
-                            # return redirect(url_for('view_profile_me'))
                             return jsonify({"message": "profile updated successfully"}), 200
                         else:
-                            # flash("profile update unsuccessful!", "danger")
-                            # return redirect(url_for('view_members'))
                             return jsonify({"message": "image upload error!"}), 403
                     except: 
-                        # flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
-                        # return redirect(url_for('view_members'))
                         return jsonify({"message": "Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet."}), 500
         # elif user_role=="Admin" and edit_id != user_id:
         #     firstname = request.form.get("firstname")
@@ -677,12 +553,7 @@ def admin_edit_profile(edit_id):
         else:
             return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in"}), 403 #To login page
-
-    
-
 
 @app.get('/Add/lead/<intern_uid>')
 def admin_add_lead(intern_uid):
@@ -705,24 +576,14 @@ def admin_add_lead(intern_uid):
                 updated = User_db.update_user_role(intern_uid, dtls)
             
                 if updated:
-                    # flash(f"You've successfully made {intern_uid} the {stack} Lead", "success")
-                    # return redirect(url_for('view_members'))
                     return jsonify({"message": f"You've successfully made {intern_uid} the {stack} Lead"}), 200
                 else:
-                    # flash("profile update unsuccessful!", "danger")
-                    # return redirect(url_for('view_members'))
                     return jsonify({"message": "profile update unsuccessful"}), 403
             else:
-                # flash("profile update unsuccessful!", "danger")
-                # return redirect(url_for('view_members'))
                 return jsonify({"message": "profile update unsuccessful"}), 403
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('login'))    
             return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401        
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in"}), 403 #To login page
 
 @app.route('/admin/delete_user/<requested_id>')
@@ -740,12 +601,8 @@ def admin_delete_user(requested_id):
                 flash(f'The request to delete {requested_id} not successful!', "danger")
                 return redirect(url_for('view_users'))
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('home'))     
             return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401       
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login'))
         return jsonify({"message": "You are not logged in"}), 403 #To login page
     
 @app.get('/view/equipments')
@@ -766,8 +623,6 @@ def view_all_eqpt():
             return render_template('pages/equipments.html', user_profile=user_profile, equipments=equipments, lost_eqpts=lost_eqpts, interns=interns, availables=availables, inventory=inventory)
 
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('login'))         
             return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401   
     else:
         # flash  ('you are not logged in!', "danger")
