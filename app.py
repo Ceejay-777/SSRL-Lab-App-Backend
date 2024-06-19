@@ -13,6 +13,7 @@ from cloudinary import uploader
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
 from bson import ObjectId
+import base64
 
 User_db = Userdb()
 Eqpt_db = Eqptdb()
@@ -55,15 +56,17 @@ cloudinary.config(
 
 mail = Mail(app)
 
-def convert_objectid_to_str(doc):
+def convert_to_json_serializable(doc):
     if isinstance(doc, list):
-        return [convert_objectid_to_str(d) for d in doc]
+        return [convert_to_json_serializable(d) for d in doc]
     if isinstance(doc, dict):
         for k, v in doc.items():
             if isinstance(v, ObjectId):
                 doc[k] = str(v)
+            elif isinstance(v, bytes):
+                doc[k] = base64.b64encode(v).decode('utf-8')
             elif isinstance(v, (dict, list)):
-                doc[k] = convert_objectid_to_str(v)
+                doc[k] = convert_to_json_serializable(v)
     return doc
 
 @app.get('/test')
@@ -91,7 +94,7 @@ def authenticate_user():
             session["user_id"] = str(user_profile["_id"])
             session["user_role"] = user_profile["role"]
             session["stack"] = user_profile["stack"]
-            user_profile = convert_objectid_to_str(user_profile)
+            user_profile = convert_to_json_serializable(user_profile)
             
             response = {
                 "message": f"Welcome! {user_profile['fullname']}",
