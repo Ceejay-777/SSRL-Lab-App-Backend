@@ -12,6 +12,7 @@ import cloudinary
 from cloudinary import uploader
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
+from bson import ObjectId
 
 User_db = Userdb()
 Eqpt_db = Eqptdb()
@@ -54,6 +55,17 @@ cloudinary.config(
 
 mail = Mail(app)
 
+def convert_objectid_to_str(doc):
+    if isinstance(doc, list):
+        return [convert_objectid_to_str(d) for d in doc]
+    if isinstance(doc, dict):
+        for k, v in doc.items():
+            if isinstance(v, ObjectId):
+                doc[k] = str(v)
+            elif isinstance(v, (dict, list)):
+                doc[k] = convert_objectid_to_str(v)
+    return doc
+
 @app.get('/test')
 def test():
     res = {"message" : "Test success"}
@@ -79,6 +91,8 @@ def authenticate_user():
             session["user_id"] = str(user_profile["_id"])
             session["user_role"] = user_profile["role"]
             session["stack"] = user_profile["stack"]
+            user_profile = convert_objectid_to_str(user_profile)
+            
             response = {
                 "message": f"Welcome! {user_profile['fullname']}",
                 "user_profile": user_profile
