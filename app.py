@@ -83,11 +83,11 @@ def authenticate_user():
                 "message": f"Welcome! {user_profile['fullname']}",
                 "user_profile": user_profile
             }
-            return jsonify(response), 200
+            return response, 200
         else:
-            return jsonify({"message": "Invalid password"}), 401
+            return {"message": "Invalid password"}, 401
     else:
-        return jsonify({"message": "Invalid login ID"}), 401
+        return {"message": "Invalid login ID"}, 401
 
 @app.get('/logout')
 def logout():
