@@ -59,14 +59,17 @@ def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
 
-@app.get('/')
-def login():
-    return render_template('/forms/login.html')
+# @app.get('/')
+# def login():
+#     return render_template('/forms/login.html')
 
 @app.post('/user/authenticate')
 def authenticate_user():
-    user_uid = request.form.get("user_id")
-    pwd = request.form.get("pwd")
+    user_uid = request.json.get("user_id")
+    print(user_uid, "Okay")
+    pwd = request.json.get("pwd")
+    print(pwd, "Okay")
+
     user_profile = User_db.get_user_by_uid(user_uid)
     
     if user_profile:
@@ -97,10 +100,11 @@ def logout():
 @app.get('/forgot/password')
 def forgot_password():
     session["confirmed"]="false" # To forgot password page
+    return jsonify({"message": "To forgot password page"})
     
 @app.post('/confirm/credentials')
 def confirm_credentials():
-    status = session["confirmed"]
+    status = session.get("confirmed", "false")
     
     if status == "false":
         uid = request.json.get("uid")
@@ -136,20 +140,20 @@ def confirm_credentials():
                 "message": "Please confirm that the email is correct!",
                 "status": "danger"
             }
-            return jsonify(response), 400
+            return jsonify(response), 403
         else:
             response = {
-                    "message": "Please confirm that the input ID is correct!",
+                    "message": "Please confirm that your username is correct!",
                     "status": "danger"
                 }
-            return jsonify(response), 400
+            return jsonify(response), 403
     
     elif status == "true":
         response = {
             "message": "Already confirmed.",
             "status": "info"
         }
-        return jsonify(response), 200 # Back to login
+        return jsonify(response), 400 # Back to login
     
 
 @app.post('/confirm/otp')
