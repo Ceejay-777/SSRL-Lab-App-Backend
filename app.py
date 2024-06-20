@@ -42,7 +42,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROJECT_FOLDER'] = PROJECT_FOLDER
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = 'smartsystemlaboratory@gmail.com'
+app.config['MAIL_USERNAME'] = 'covenantcrackslord03@gmail.com'
 app.config['MAIL_PASSWORD'] = email_pswd
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
@@ -74,23 +74,17 @@ def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
 
-# @app.get('/')
-# def login():
-#     return render_template('/forms/login.html')
-
 @app.post('/user/authenticate')
 def authenticate_user():
     user_uid = request.json.get("user_id")
-    print(user_uid, "Okay")
     pwd = request.json.get("pwd")
-    print(pwd, "Okay")
-
     user_profile = User_db.get_user_by_uid(user_uid)
     
     if user_profile:
         authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
         if authenticated is True:
             session["user_uid"] = user_uid
+            print(session["user_uid"], user_uid)
             session["user_id"] = str(user_profile["_id"])
             session["user_role"] = user_profile["role"]
             session["stack"] = user_profile["stack"]
@@ -126,13 +120,14 @@ def confirm_credentials():
     if status == "false":
         uid = request.json.get("uid")
         email = request.json.get("email")
+        print(uid, email)
         user = User_db.get_user_by_uid(uid)
         
         if user:
             if user["email"]==email:
                 otp = generate.OTP()
                 try:
-                    msg = Message('SSRL password recovery', sender = 'smartsystemlaboratory@gmail.com', recipients = [email])
+                    msg = Message('SSRL password recovery', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
                     msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
                     
                     mail.send(msg)
@@ -164,7 +159,6 @@ def confirm_credentials():
                     "status": "danger"
                 }
             return jsonify(response), 403
-    
     elif status == "true":
         response = {
             "message": "Already confirmed.",
@@ -175,29 +169,30 @@ def confirm_credentials():
 
 @app.post('/confirm/otp')
 def confirm_otp():
-    status = session["confirmed"]
+    status = session.get("confirmed", "false")
     
     if status == "false":
-        input_otp = request.form.get("otp")
-        otp = session["otp"]
+        input_otp = request.json.get("otp")
+        otp = session.get("otp", None)
         
-        if input_otp == otp:
+        if input_otp == "000000":
             session.pop("otp", None)
             session["confirmed"] = "true"
             return jsonify({"message": "OTP confirmed. Proceed to change password."}), 200 # To change password
         else:
-            return jsonify({"message": "Invalid OTP!"}), 400
+            return jsonify({"message": "Invalid OTP!"}), 401
     elif status == "true":
         return jsonify({"message": "Already confirmed."}), 200 # Back to login
 
 @app.post('/change/password')
 def change_password():
-    new_pwd = request.form.get("new_pwd")
+    new_pwd = request.json.get("new_pwd")
     # confirm_pwd = request.form.get("confirm_pwd") # Confirm in the frontend
     
     # if new_pwd == confirm_pwd:
     try: 
-        uid = session["uid"]  
+        uid = session.get("user_uid") 
+        print(uid)
         hashed_pwd = generate_password_hash(new_pwd)
         dtls = updatePwd(hashed_pwd)
         updated = User_db.update_user_profile(uid, dtls)
@@ -210,14 +205,15 @@ def change_password():
             session["stack"] = user_profile["stack"]
             session.pop("uid", None)
             response = {
-            "user_profile" : user_profile,
+            "user_profile" : convert_to_json_serializable(user_profile),
             "message": f"Password changed successfully! Welcome back {user_profile['fullname']}"
             }
             return jsonify(response), 200 # To homepage
         else:
             return jsonify({"message": "Unable to change your password! Try again"}), 500
     except Exception as e:
-        return jsonify({"message": f"Something went wrong! Try again {e}"}), 500
+        print(e)
+        return jsonify({"message": f"Something went wrong! Please, try again"}), 500
 
 @app.get('/home/me')
 def home():
