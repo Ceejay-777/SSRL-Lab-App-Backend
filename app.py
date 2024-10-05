@@ -36,7 +36,9 @@ CORS(app)
 
 bcrypt = Bcrypt(app)
 
-app.secret_key = os.urandom(32)
+app.secret_key = "ssrl"
+# app.secret_key = os.urandom(32)
+
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROJECT_FOLDER'] = PROJECT_FOLDER
@@ -84,7 +86,7 @@ def authenticate_user():
         authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
         if authenticated is True:
             session["user_uid"] = user_uid
-            print(session["user_uid"], user_uid)
+            app.logger.info(session["user_uid"])
             session["user_id"] = str(user_profile["_id"])
             session["user_role"] = user_profile["role"]
             session["stack"] = user_profile["stack"]
@@ -92,26 +94,27 @@ def authenticate_user():
             
             response = {
                 "message": f"Welcome! {user_profile['fullname']}",
-                "user_profile": user_profile
+                "status" : "success"
+                # "user_profile": user_profile
             }
             return response, 200
         else:
-            return {"message": "Invalid password"}, 401
+            return {"message": "Invalid password","status" : "danger"}, 401
     else:
-        return {"message": "Invalid login ID"}, 401
+        return {"message": "Invalid login ID", "status" : "danger"}, 401
 
 @app.get('/logout')
 def logout():
     if "user_id" in session:
         session.pop("user_id", None)
-        return jsonify({"message": "Logged out successfully", "status": "info"}), 200 # Return to login
+        return jsonify({"message": "Logged out successfully", "status": "success"}), 200 # Return to login
     else:
         return jsonify({"message": "You are not logged in!", "status": "danger"}), 400
 
 @app.get('/forgot/password')
 def forgot_password():
     session["confirmed"]="false" # To forgot password page
-    return jsonify({"message": "To forgot password page"})
+    return jsonify({"status" : "success"})
     
 @app.post('/confirm/credentials')
 def confirm_credentials():
@@ -126,18 +129,22 @@ def confirm_credentials():
         if user:
             if user["email"]==email:
                 otp = generate.OTP()
+                print(otp)
                 try:
                     msg = Message('SSRL password recovery', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
                     msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
                     
-                    mail.send(msg)
+                    # mail.send(msg)
                     
                     session["uid"]=uid
                     session["otp"]=otp
+                    
+                    print(session["otp"])
 
                     response = {
                         "message": "Check your email for the OTP",
-                        "otp": otp #To confirm OTP page
+                        "otp": otp, #To confirm OTP page
+                        "status" : "success"
                     }
                     return jsonify(response), 200
                 except Exception as exp:
@@ -170,19 +177,20 @@ def confirm_credentials():
 @app.post('/confirm/otp')
 def confirm_otp():
     status = session.get("confirmed", "false")
+    print(session.get('otp'))
     
-    if status == "false":
+    if status == "false": 
         input_otp = request.json.get("otp")
-        otp = session.get("otp", None)
-        
+        # otp = session["otp"]
+        # print(input_otp, otp)
         if input_otp == "000000":
             session.pop("otp", None)
             session["confirmed"] = "true"
-            return jsonify({"message": "OTP confirmed. Proceed to change password."}), 200 # To change password
+            return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 # To change password
         else:
-            return jsonify({"message": "Invalid OTP!"}), 401
+            return jsonify({"message": "Invalid OTP!", "status" : "danger"}), 401
     elif status == "true":
-        return jsonify({"message": "Already confirmed."}), 200 # Back to login
+        return jsonify({"message": "Already confirmed." , "status" : "info"}), 200 # Back to login
 
 @app.post('/change/password')
 def change_password():
@@ -191,7 +199,7 @@ def change_password():
     
     # if new_pwd == confirm_pwd:
     try: 
-        uid = session.get("user_uid") 
+        uid = session.get("uid", None) 
         print(uid)
         hashed_pwd = generate_password_hash(new_pwd)
         dtls = updatePwd(hashed_pwd)
@@ -206,22 +214,24 @@ def change_password():
             session.pop("uid", None)
             response = {
             "user_profile" : convert_to_json_serializable(user_profile),
-            "message": f"Password changed successfully! Welcome back {user_profile['fullname']}"
+            "message": f"Password changed successfully! Welcome back {user_profile['fullname']}",
+            "status" : "success"
             }
             return jsonify(response), 200 # To homepage
         else:
-            return jsonify({"message": "Unable to change your password! Try again"}), 500
+            return jsonify({"message": "Unable to change your password! Try again", "status" : "danger"}), 500
     except Exception as e:
         print(e)
-        return jsonify({"message": f"Something went wrong! Please, try again"}), 500
+        return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home/me')
 def home():
     if "user_id" in session:
-        user_id = session["user_id"]
-        uid = session["user_uid"]
-        user_role = session["user_role"]
-        stack = session["stack"]
+        user_id = session.get("user_id")
+        uid = session.get("user_uid")
+        user_role = session.get("user_role")
+        stack = session.get("stack")
+        print(user_id, uid, user_role, stack)
         user_profile = User_db.get_user_by_oid(user_id)
         todos = list(Todos_db.get_todos_by_user_id_limited(user_id))
         all_todos = list(Todos_db.get_todos_by_user_id(user_id))
@@ -246,7 +256,7 @@ def home():
             
             # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
         
-            response = {"user_profile" : user_profile, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted}
+            response = {"user_profile" : user_profile, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted, "status" : "success"}
             return jsonify({response}), 200
             
         elif user_role == "Intern":
@@ -268,7 +278,7 @@ def home():
                 
             members = list(User_db.get_users_by_stack_limited(stack))
             
-            response = {"taskCompleted" : taskCompleted, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance}
+            response = {"taskCompleted" : taskCompleted, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
             return jsonify({response}), 200
         
         elif user_role == "Lead":
@@ -278,12 +288,12 @@ def home():
             attendance = list(Attendance_db.get_attendance(user_id))
             members = list(User_db.get_users_by_stack_limited(stack))
             
-            response = {"taskCompleted" : taskCompleted,  "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance}
+            response = {"taskCompleted" : taskCompleted,  "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
             return jsonify({response}), 200
         else:
-            return jsonify({"message": "Permission not granted"}), 401
+            return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
-        return jsonify({"message": "You are not logged in!"}), 401
+        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
 @app.get('/view/members') #Interns tab 
 def view_members():
@@ -307,6 +317,7 @@ def view_members():
             "hardlead": hardlead,
             "softinterns": softinterns,
             "hardinterns": hardinterns,
+            "status" : "success"
         }), 200
             
         elif user_role == "Lead" and (stack=="Software" or stack=="Hardware"):
@@ -315,11 +326,12 @@ def view_members():
             
             return jsonify({
             "members": members,
+            "status" : "success"
             }), 200
         else:
-            return jsonify({"message": "Permission not granted"}), 401
+            return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
-        return jsonify({"message": "You are not logged in!"}), 401
+        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
 @app.get('/show/profile/<requested_id>')
 def show_user_profile(requested_id):
@@ -329,11 +341,11 @@ def show_user_profile(requested_id):
         requested_profile = User_db.get_user_by_oid(requested_id)
         
         if user_role == "Admin" or (user_role== "Lead" and stack==requested_profile["stack"]):
-            return jsonify({"requested_profile" : requested_profile }), 200
+            return jsonify({"requested_profile" : requested_profile, "status" : "success" }), 200
         else:
-            return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin"}), 401
+            return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin", "status" : "info"}), 401
     else:
-        return jsonify({"message": "You are not logged in!"}), 401
+        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
     
 @app.post('/Admin/create/user')
 def create_user():
@@ -366,29 +378,29 @@ def create_user():
             app.logger.info(usr)
             
             try:
-                msg = Message('SSRL Login credentials', sender = 'smartsystemlaboratory@gmail.com', recipients = [email])
+                msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
                 msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
                 
                 mail.send(msg)
             
                 user_id = User_db.create_user(usr)
                 
-                return jsonify({"message" : f"user {uid} created successfully", "user_id" : user_id}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
+                return jsonify({"message" : f"user {uid} created successfully", "user_id" : user_id, "status" : "success"}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
             except:
-                return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection."}), 500
+                return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
         else:
-            return jsonify({"message": "Permission not granted"}), 403
+            return jsonify({"message": "Permission not granted", "status" : "info"}), 403
     else:
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
     
 @app.get('/view/profile/me')
 def view_profile_me():
     if "user_id" in session:
         current_user_id = session["user_id"]
         user_profile = User_db.get_user_by_oid(current_user_id)
-        return jsonify({"user_profile" : user_profile}), 200 
+        return jsonify({"user_profile" : user_profile, "status" : "success"}), 200 #Convert first
     else:
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
 @app.post('/user/edit/profile')
 def user_edit_profile(): 
@@ -411,13 +423,13 @@ def user_edit_profile():
                     updated = User_db.update_user_profile_by_oid(user_id, dtls)
                 
                     if updated:
-                        return jsonify({"message": "profile updated successfully"}), 200
+                        return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
                     else:
-                        return jsonify({"message": "profile updated unsuccessful"}), 403
+                        return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
                 else:
-                    return jsonify({"message": "profile updated unsuccessful"}), 403
+                    return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
             except:
-                return jsonify({"message": "image upload error!"}), 500
+                return jsonify({"message": "image upload error!", "status" : "danger"}), 500
         else:
             user_profile = User_db.get_user_by_oid(user_id)
             filename = user_profile["avatar"]
@@ -426,14 +438,12 @@ def user_edit_profile():
             updated = User_db.update_user_profile_by_oid(user_id, dtls)
             
             if updated:
-                return jsonify({"message": "profile updated successfully"}), 200
+                return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
             else:
-                return jsonify({"message": "profile updated unsuccessful"}), 403
+                return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
     else:
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-
-            
 @app.post('/admin/edit/profile/<edit_id>')
 def admin_edit_profile(edit_id):
     if "user_id" in session:
@@ -468,13 +478,13 @@ def admin_edit_profile(edit_id):
                             updated = User_db.update_user_profile_by_oid(user_id, dtls)
                         
                             if updated:
-                                return jsonify({"message": "profile updated successfully"}), 200
+                                return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
                             else:
-                                return jsonify({"message": "profile updated unsuccessful"}), 403
+                                return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
                         else:
-                            return jsonify({"message": "profile updated unsuccessful"}), 403
+                            return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
                     except:
-                        return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection"}), 500
+                        return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection", "status" : "danger"}), 500
                 else:
                     user_profile = User_db.get_user_by_oid(user_id)
                     filename = user_profile["avatar"]
@@ -483,9 +493,9 @@ def admin_edit_profile(edit_id):
                     updated = User_db.update_user_profile_by_oid(user_id, dtls)
                     
                     if updated:
-                        return jsonify({"message": "profile updated successfully"}), 200
+                        return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
                     else:
-                            return jsonify({"message": "profile updated unsuccessful"}), 403
+                            return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
             else:
                 uid = generate.user_id(firstname)
                 if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
@@ -498,32 +508,32 @@ def admin_edit_profile(edit_id):
 
                             updated = User_db.update_user_profile_by_oid(user_id, dtls)
                             if updated:
-                                return jsonify({"message": "profile updated successfully"}), 200
+                                return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
                             else:
-                                return jsonify({"message": "profile updated unsuccessful"}), 403
+                                return jsonify({"message": "profile update unsuccessful", "status" : "danger"}), 403
                         else:
-                            return jsonify({"message": "image upload error!"}), 403
+                            return jsonify({"message": "image upload error!", "status" : "danger"}), 403
                     
                     except:
-                        return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection"}), 500
+                        return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection", "status" : "danger"}), 500
                 else:
                     user_profile = User_db.get_user_by_oid(user_id)
                     filename = user_profile["avatar"]
                     dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
 
                     try:
-                        msg = Message('SSRL Profile Updated', sender = 'smartsystemlaboratory@gmail.com', recipients = [user_profile["email"]])
+                        msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [user_profile["email"]])
                         msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
                         
                         mail.send(msg)
                         
                         updated = User_db.update_user_profile_by_oid(user_id, dtls)
                         if updated:
-                            return jsonify({"message": "profile updated successfully"}), 200
+                            return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
                         else:
-                            return jsonify({"message": "image upload error!"}), 403
+                            return jsonify({"message": "image upload error!", "status" : "danger"}), 403
                     except: 
-                        return jsonify({"message": "Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet."}), 500
+                        return jsonify({"message": "Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "status" : "danger"}), 500
         # elif user_role=="Admin" and edit_id != user_id:
         #     firstname = request.form.get("firstname")
         #     surname = request.form.get("surname")
@@ -568,9 +578,9 @@ def admin_edit_profile(edit_id):
         #             flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
         #             return redirect(url_for('view_members'))
         else:
-            return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401
     else:
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
 @app.get('/Add/lead/<intern_uid>')
 def admin_add_lead(intern_uid):
@@ -593,15 +603,15 @@ def admin_add_lead(intern_uid):
                 updated = User_db.update_user_role(intern_uid, dtls)
             
                 if updated:
-                    return jsonify({"message": f"You've successfully made {intern_uid} the {stack} Lead"}), 200
+                    return jsonify({"message": f"You've successfully made {intern_uid} the {stack} Lead", "status" : "success"}), 200
                 else:
-                    return jsonify({"message": "profile update unsuccessful"}), 403
+                    return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 403
             else:
-                return jsonify({"message": "profile update unsuccessful"}), 403
+                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 403
         else:
-            return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401        
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
     else:
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "danger"}), 403 #To login page
 
 @app.route('/admin/delete_user/<requested_id>')
 def admin_delete_user(requested_id):
@@ -612,15 +622,15 @@ def admin_delete_user(requested_id):
             deleted = User_db.delete_user(requested_id)
             
             if deleted:
-                flash(f"User {requested_id} deleted successfully!", "success")
-                return redirect(url_for('view_members'))
+                return jsonify({"message": f"User {requested_id} deleted successfully!", "status" : "success"}), 200
+
             else:
-                flash(f'The request to delete {requested_id} not successful!', "danger")
-                return redirect(url_for('view_users'))
+                return jsonify({"message": f"The request to delete {requested_id} was not successful!", "status" : "danger"}), 400
+
         else:
-            return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401       
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
     else:
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
     
 @app.get('/view/equipments')
 def view_all_eqpt():
@@ -632,19 +642,19 @@ def view_all_eqpt():
         
         if user_role=="Admin" or (user_role =="Lead" and stack =="Hardware"):
             equipments = list(Eqpt_db.get_all_eqpt())
-            interns = User_db.get_all_users()
+            interns = User_db.get_all_users(), 
             lost_eqpts = lost_eqpt_db.get_all()
             availables = Eqpt_db.get_all_available_eqpt()
             inventory = list(Inventory_db.get_all())
             
-            return render_template('pages/equipments.html', user_profile=user_profile, equipments=equipments, lost_eqpts=lost_eqpts, interns=interns, availables=availables, inventory=inventory)
+            return jsonify({equipments:equipments, lost_eqpts:lost_eqpts, interns:interns, availables:availables, inventory:inventory, "status" : "success"})
 
         else:
-            return jsonify({"message": "Unauthorized actiom. Please contact the admin."}), 401   
+            return jsonify({"message": "Unauthorized actiom. Please contact the admin.", "status" : "info"}), 401   
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login'))
-        return jsonify({"message": "You are not logged in"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
 @app.get('/view/equipments/<eqpt_id>')        
 def view_eqpt_dtls(eqpt_id):
@@ -658,15 +668,16 @@ def view_eqpt_dtls(eqpt_id):
         if user_role=="Admin" or (user_role =="Lead" and stack =="Hardware"):
             eqpt_dtls = Eqpt_db.get_eqpt_by_id(eqpt_id)
             
-            return render_template('pages/view_equipment.html', user_profile=user_profile, eqpt_dtls=eqpt_dtls)
+            # return render_template('pages/view_equipment.html', user_profile=user_profile, eqpt_dtls=eqpt_dtls)
+            return jsonify({ eqpt_dtls:eqpt_dtls, "status" : "success"})
         else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))   
+            return jsonify({"message" : 'permission not granted', "status" : "info"})         
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
-
-
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login'))
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.post('/equipment/new')
 def eqpt_new_input():
@@ -701,17 +712,21 @@ def eqpt_new_input():
                 dtls = Eqpt(Name, quantity, description, date_of_arrival, type, status, datetime_inputed, date_inserted)
                 Inventory_db.insert_new(dtls)
             
-                flash (f"Equipment {name} inputed successfully!", "success")
-                return redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
+                # flash (f"Equipment {name} inputed successfully!", "success")
+                # return redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
+                return jsonify({"message" : f"Equipment {name} inputed successfully!", eqpt_id : eqpt_id, "status" : "success"}) #What is eqpt_id needed for?
             else:
-                flash('An error occured!try again', 'danger')
-                return redirect(url_for('view_all_eqpt'))
+                # flash('An error occured!try again', 'danger')
+                # return redirect(url_for('view_all_eqpt'))
+                return jsonify({"message" : 'An error occured! Try again', "status" : "danger"})
         else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login')) 
+            return jsonify({"message" : 'permission not granted', "status" : "info"})           
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login'))
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})        
     
 @app.post('/equipment/existing/input')
 def eqpt_existing_input():
@@ -750,20 +765,22 @@ def eqpt_existing_input():
             if updated:
                 dtls = Eqpt(name, added_quantity, description, date_of_arrival, type, status, datetime_inputed, date_inserted)
                 Inventory_db.insert_new(dtls)
-                flash (f"Equipment inputed successfully!", "success")
-                return redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
-            else:
-                flash('An error occured!try again', 'danger')
-                return redirect(url_for('view_all_eqpt'))
-                
-        else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
-    else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
-    
+                # flash (f"Equipment inputed successfully!", "success")
+                # return redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
+                return jsonify({"message" : f"Equipment inputed successfully!", eqpt_id : eqpt_id, "status" : "success"}) #What is eqpt_id needed for?
 
+            else:
+                # flash('An error occured!try again', 'danger')
+                # return redirect(url_for('view_all_eqpt'))
+                return jsonify({"message" : 'An error occured! Try again', "status" : "danger"})
+        else:
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                             
+    else:
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login'))
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})                
     
 @app.post('/equipment/update/<eqpt_id>')
 def update_eqpt_dtls(eqpt_id):
@@ -790,18 +807,23 @@ def update_eqpt_dtls(eqpt_id):
             
             updated = Eqpt_db.update_eqpt_dtls(eqpt_id, dtls)
             if updated:
-                flash(f"{name} details updated successfully!", "success")
-                return redirect(url_for('view_eqpt_dtls'), eqpt_id)
+                # flash(f"{name} details updated successfully!", "success")
+                # return redirect(url_for('view_eqpt_dtls'), eqpt_id)
+                return jsonify({"message" : f"{name} details successfully!", eqpt_id : eqpt_id, "status" : "success"}) #What is eqpt_id needed for?
+                
             else:
-                flash("The request was unsuccessful!", "danger")
-                return redirect(url_for('view_eqpt_dtls'), eqpt_id)
-                    
+                # flash("The request was unsuccessful!", "danger")
+                # return redirect(url_for('view_eqpt_dtls'), eqpt_id)
+                return jsonify({"message" : "The request was unsuccessful!", "status" : "danger"})                                   
         else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))  
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})        
+ 
     
     
     
@@ -817,17 +839,21 @@ def delete_eqpt(eqpt_id):
             deleted = Eqpt_db.delete_existing_eqpt(eqpt_id)
             
             if deleted:
-                flash ("Equipment deleted successfully!", "success")
-                return redirect(url_for('view_all_eqpt'))
+                # flash ("Equipment deleted successfully!", "success")
+                # return redirect(url_for('view_all_eqpt'))
+                return jsonify({"message" : "Equipment deleted successfully!", "status" : "success"})
             else:
-                flash ('The request was unsuccessful!', "danger")
-                redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
+                # flash("The request was unsuccessful!", "danger")
+                # return redirect(url_for('view_eqpt_dtls'), eqpt_id)
+                return jsonify({"message" : "The request was unsuccessful!", "status" : "danger"})      
         else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})  
     
 @app.post('/lost/equiment')
 def lost_eqpt():
@@ -871,15 +897,17 @@ def lost_eqpt():
             
             Eqpt_db.update_eqpt_dtls(eqpt_id, dtls)
             
-            flash (f"Equipment {name} recorded {status} successfully!", "success")
-            return redirect(url_for('view_lost_eqpt_dtls', eqpt_id=lost_id))
-            
+            # flash (f"Equipment {name} recorded {status} successfully!", "success")
+            # return redirect(url_for('view_lost_eqpt_dtls', eqpt_id=lost_id))
+            return jsonify({"message" : f"Equipment {name} recorded {status} successfully!", eqpt_id : lost_id, "status" : "success"})
         else:
-                flash('permission not granted', "danger")
-                return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))   
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})   
     
 @app.get('/view/lost/equipment/<eqpt_id>')        
 def view_lost_eqpt_dtls(eqpt_id):
@@ -894,13 +922,16 @@ def view_lost_eqpt_dtls(eqpt_id):
             eqpt_dtls = lost_eqpt_db.get_eqpt_by_id(eqpt_id)
             interns = User_db.get_all_users()
             
-            return render_template('pages/lost_equipment.html', user_profile=user_profile, eqpt_dtls=eqpt_dtls, interns=interns)
+            # return render_template('pages/lost_equipment.html', user_profile=user_profile, eqpt_dtls=eqpt_dtls, interns=interns)
+            return jsonify({user_profile:user_profile, eqpt_dtls:eqpt_dtls, interns:interns, "status" : "success"})
         else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
     
 @app.post('/edit/lost/equiment/<eqpt_id>')
 def edit_lost_eqpt(eqpt_id):
@@ -926,19 +957,21 @@ def edit_lost_eqpt(eqpt_id):
             updated = lost_eqpt_db.update_eqpt_dtls(eqpt_id, dtls)
 
             if updated:
-                flash ("Report details edited successfully!", "success")
-                return redirect(url_for('view_lost_eqpt_dtls', eqpt_id))
-            
+                # flash ("Report details edited successfully!", "success")
+                # return redirect(url_for('view_lost_eqpt_dtls', eqpt_id))
+                return jsonify({"message" : "Report details edited successfully!", "status" : "success"}) 
             else:
-                flash ("Report details edit unsuccessfully!", "danger")
-                return redirect(url_for('view_lost_eqpt_dtls', eqpt_id))
-            
+                # flash ("Report details edit unsuccessfully!", "danger")
+                # return redirect(url_for('view_lost_eqpt_dtls', eqpt_id))
+                return jsonify({"message" : "Report details edited unsuccessfully!", "status" : "danger"})
         else:
-                flash('permission not granted', "danger")
-                return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))   
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})   
 
     
 @app.get('/delete/lost/equipment/<eqpt_id>')
@@ -953,20 +986,22 @@ def delete_lost_eqpt(eqpt_id):
             deleted = lost_eqpt_db.delete_lost_eqpt(eqpt_id)
             
             if deleted:
-                flash ("Equipment deleted successfully!", "success")
-                return redirect(url_for('view_all_eqpt'))
+                # flash ("Equipment deleted successfully!", "success")
+                # return redirect(url_for('view_all_eqpt'))
+                return jsonify({"message" : "Equipment deleted successfully!", "status" : "success"})             
             else:
-                flash ('The request was unsuccessful!', "danger")
-                return redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
+                # flash ('The request was unsuccessful!', "danger")
+                # return redirect(url_for('view_eqpt_dtls', eqpt_id=eqpt_id))
+                return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"})             
         else:
-            flash('permission not granted', "danger")
-            return redirect(url_for('login'))            
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
-     
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
             
- 
 @app.post('/update/email')
 def update_email():
     if "user_id" in session:
@@ -985,22 +1020,25 @@ def update_email():
                 updated = User_db.update_user_profile_by_oid(id, dtls)
                 
                 if updated:
-                    flash("Email address updated successfully!", "success")
-                    return redirect(url_for('view_profile_me'))
+                    # flash("Email address updated successfully!", "success")
+                    # return redirect(url_for('view_profile_me'))
+                    return jsonify({"message" : "Email address updated successfully!", "status" : "success"})                    
                 else:
-                    flash("Unable to update your email address! Try again", "danger")
-                    return redirect(url_for('view_profile_me')) 
+                    # flash("Unable to update your email address! Try again", "danger")
+                    # return redirect(url_for('view_profile_me')) 
+                    return jsonify({"message" :"Unable to update your email address! Try again", "status" : "danger"})                    
             else:
-                flash("Unmatching email address! Unable to update email address", "danger")
-                return redirect(url_for('view_profile_me'))
-                
+                # flash("Unmatching email address! Unable to update email address", "danger")
+                # return redirect(url_for('view_profile_me'))
+                return jsonify({"message" :"Unmatching email address! Unable to update email address", "status" : "danger"})                    
         else:
-            flash("Invalid password", "danger")
-            return redirect(url_for('view_profile_me'))
-        
+            # flash("Invalid password", "danger")
+            # return redirect(url_for('view_profile_me'))
+            return jsonify({"message" : "Invalid password", "status" : "danger"})                    
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 @app.post('/update/password')
 def update_password():
@@ -1022,22 +1060,25 @@ def update_password():
                 updated = User_db.update_user_profile_by_oid(id, dtls)
                 
                 if updated:
-                    flash("Password updated successfully!", "success")
-                    return redirect(url_for('view_profile_me'))
+                    # flash("Password updated successfully!", "success")
+                    # return redirect(url_for('view_profile_me'))
+                    return jsonify({"message" : "Password updated successfully!", "status" : "success"})
                 else:
-                    flash("Unable to change your password! Try again", "danger")
-                    return redirect(url_for('view_profile_me')) 
+                    # flash("Unable to change your password! Try again", "danger")
+                    # return redirect(url_for('view_profile_me')) 
+                    return jsonify({"message" :"Unable to change your password! Try again", "status" : "danger"})                    
             else:
-                flash("Unmatching password input! Unable to update your password", "danger")
-                return redirect(url_for('view_profile_me'))
-                
+                # flash("Unmatching password input! Unable to update your password", "danger")
+                # return redirect(url_for('view_profile_me'))
+                return jsonify({"message" :"Unmatching password input! Unable to update your password", "status" : "danger"})                    
         else:
-            flash("Invalid password", "danger")
-            return redirect(url_for('view_profile_me'))
-        
+            # flash("Invalid password", "danger")
+            # return redirect(url_for('view_profile_me'))
+            return jsonify({"message" : "Invalid password", "status" : "danger"})                    
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
  
 
 @app.get('/submissions/forms/request')
@@ -1048,11 +1089,12 @@ def get_request_form():
         
         eqpts = Eqpt_db.get_all_eqpt()
         user_profile = User_db.get_user_by_oid(user_id)
-        return render_template('forms/request_form.html', eqpts=eqpts, user_profile=user_profile)
-    
+        # return render_template('forms/request_form.html', eqpts=eqpts, user_profile=user_profile)
+        return jsonify({eqpts:eqpts, user_profile:user_profile, "status" : "success"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
     
     
 @app.get('/all/submissions')
@@ -1142,7 +1184,8 @@ def all_submissions():
                         x["date_created"] = "yesterday"
 
             
-            return render_template('pages/my_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, eqpts=eqpts)
+            # return render_template('pages/my_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, eqpts=eqpts)
+            return jsonify({reports:reports, requests:requests, projects:projects, user_profile:user_profile, eqpts:eqpts, "status" : "success"})
         
         elif role == "Lead":
             if stack == "Software":
@@ -1211,7 +1254,9 @@ def all_submissions():
                         x["date_created"] = "yesterday"
 
             
-                return render_template('pages/my_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, eqpts=eqpts)
+                # return render_template('pages/my_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, eqpts=eqpts)
+                return jsonify({reports:reports, requests:requests, projects:projects, user_profile:user_profile, eqpts:eqpts, "status" : "success"})
+
             
             else:
                 reports =list(Report_db.get_by_sender(_id, uid))
@@ -1280,14 +1325,16 @@ def all_submissions():
                         x["date_created"] = "yesterday"
 
             
-                return render_template('pages/my_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, eqpts=eqpts)
+                # return render_template('pages/my_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, eqpts=eqpts)
+                return jsonify({reports:reports, requests:requests, projects:projects, user_profile:user_profile, eqpts:eqpts, "status" : "success"})
         else:
-                flash('permission not granted', "danger")
-                return redirect(url_for('login'))
-        
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
     
 @app.get('/submissions/interns')
 def intern_submissions():
@@ -1369,7 +1416,8 @@ def intern_submissions():
                         x["date_created"] = "yesterday"
 
             
-                return render_template('pages/intern_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, interns=interns)
+                # return render_template('pages/intern_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, interns=interns)
+                return jsonify({reports:reports, requests:requests, projects:projects, user_profile:user_profile, interns:interns, "status" : "success"})
             else:
                 position = "Hardware"
                 reports = list(Report_db.get_by_recipient(position))
@@ -1438,7 +1486,9 @@ def intern_submissions():
                         x["date_created"] = "yesterday"
 
 
-                return render_template('pages/intern_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, interns=interns)
+                # return render_template('pages/intern_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, interns=interns)
+                return jsonify({reports:reports, requests:requests, projects:projects, user_profile:user_profile, interns:interns, "status" : "success"})
+
         
         elif role == "Admin":
             position = "Admin"
@@ -1508,14 +1558,17 @@ def intern_submissions():
                         x["date_created"] = "yesterday"
 
             
-            return render_template('pages/intern_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, interns=interns, eqpts=eqpts)
+            # return render_template('pages/intern_submissions.html', reports=reports, requests=requests, projects=projects, user_profile=user_profile, interns=interns, eqpts=eqpts)
+            return jsonify({reports:reports, requests:requests, projects:projects, user_profile:user_profile, interns:interns, eqpts:eqpts, "status" : "success"})
+
         else:
-                flash('permission not granted', "danger")
-                return redirect(url_for('login'))
-        
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 
 @app.post('/submissions/submit/request_form')
@@ -1566,8 +1619,9 @@ def post_request_form():
             requested = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
             request_id = Request_db.insert_new(requested)
             
-            flash("Request submitted successfully!", "success")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash("Request submitted successfully!", "success")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : "Request submitted successfully!", "status" : "success"})  
         
         elif recipient == "software":
             stack = "Software"
@@ -1580,8 +1634,9 @@ def post_request_form():
             requested = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
             request_id = Request_db.insert_new(requested)
             
-            flash("Request submitted successfully!", "success")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash("Request submitted successfully!", "success")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : "Request submitted successfully!", "status" : "success"})              
         
         elif recipient == "hardware":
             stack="Hardware" 
@@ -1594,16 +1649,18 @@ def post_request_form():
             requested = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
             request_id = Request_db.insert_new(requested)
             
-            flash("Request submitted successfully!", "success")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash("Request submitted successfully!", "success")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : "Request submitted successfully!", "status" : "success"})  
         
         else:
-                flash('permission not granted', "danger")
-                return redirect(url_for('login'))
-
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 @app.get('/view/request/<request_id>')
 def view_request(request_id):
@@ -1615,10 +1672,12 @@ def view_request(request_id):
         request = Request_db.get_by_request_id(request_id)
         eqpts = Eqpt_db.get_all_available_eqpt()
     
-        return render_template('pages/view_request.html', request=request, user_profile=user_profile, eqpts=eqpts)
+        # return render_template('pages/view_request.html', request=request, user_profile=user_profile, eqpts=eqpts)
+        return jsonify({request:request, user_profile:user_profile, eqpts:eqpts, "status" : "success"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
     
 @app.get('/request/approve/<request_id>')
 def approve_request(request_id):
@@ -1627,14 +1686,17 @@ def approve_request(request_id):
         approved = Request_db.approve_request(request_id)
 
         if approved: 
-            flash('Request approved',"success")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash('Request approved',"success")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'Request approved', "status" : "success"})                                                   
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/request/decline/<request_id>')
 def decline_request(request_id):
@@ -1643,14 +1705,17 @@ def decline_request(request_id):
         declined = Request_db.decline_request(request_id)
 
         if declined: 
-            flash('Request declined',"success")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash('Request declined',"success")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'Request declined', "status" : "success"})                                                   
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_request', request_id=request_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.post('/request/edit/<request_id>')
 def edit_request(request_id):
@@ -1702,11 +1767,13 @@ def edit_request(request_id):
             updated = Request_db.update_request_dtls(request_id,dtls)
             
             if updated:
-                flash("Request edited successfully!", "success")
-                return redirect(url_for('view_request', request_id=request_id))
+                # flash("Request edited successfully!", "success")
+                # return redirect(url_for('view_request', request_id=request_id))
+                return jsonify({"message" : 'Request edited successfully!', "status" : "success"})                                                   
             else:
-                flash('An error occurred! Try again', "danger")
-                return redirect(url_for('view_request', request_id=request_id))
+                # flash('An error occurred! Try again', "danger")
+                # return redirect(url_for('view_request', request_id=request_id))
+                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
 
         elif recipient == "software":
             stack = "Software"
@@ -1719,11 +1786,13 @@ def edit_request(request_id):
             dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
             updated = Request_db.update_request_dtls(request_id,dtls)
             if updated:
-                flash("Request edited successfully!", "success")
-                return redirect(url_for('view_request', request_id=request_id))
+                # flash("Request edited successfully!", "success")
+                # return redirect(url_for('view_request', request_id=request_id))
+                return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
             else:
-                flash('An error occurred! Try again', "danger")
-                return redirect(url_for('view_request', request_id=request_id))
+                # flash('An error occurred! Try again', "danger")
+                # return redirect(url_for('view_request', request_id=request_id))
+                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
 
         elif recipient == "hardware":
             stack="Hardware" 
@@ -1735,39 +1804,42 @@ def edit_request(request_id):
         
             dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
             updated = Request_db.update_request_dtls(request_id,dtls)
-
             if updated:
-                flash("Request edited successfully!", "success")
-                return redirect(url_for('view_request', request_id=request_id))
+                # flash("Request edited successfully!", "success")
+                # return redirect(url_for('view_request', request_id=request_id))
+                return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
             else:
-                flash('An error occurred! Try again', "danger")
-                return redirect(url_for('view_request', request_id=request_id))
-            
+                # flash('An error occurred! Try again', "danger")
+                # return redirect(url_for('view_request', request_id=request_id))
+                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
         else:
-                flash('permission not granted', "danger")
-                return redirect(url_for('login'))
-
+            # flash('permission not granted', "danger")
+            # return redirect(url_for('login'))  
+            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.get('/delete/request/<request_id>')
 def delete_request(request_id):
     
     if "user_id" in session:
             
-            deleted = Request_db.delete_request(request_id)
-            
-            if deleted:
-                flash ("Request deleted successfully!", "success")
-                return redirect(url_for('all_submissions'))
-            else:
-                flash ('The request was unsuccessful!', "danger")
-                return redirect(url_for('view_request', request_id=request_id))
-                  
+        deleted = Request_db.delete_request(request_id)
+        
+        if deleted:
+            # flash ("Request deleted successfully!", "success")
+            # return redirect(url_for('all_submissions'))
+            return jsonify({"message" : 'Request deleted successfully!', "status" : "success"})     
+        else:
+            # flash ('The request was unsuccessful!', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"})  
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
   
         
 
@@ -1798,12 +1870,13 @@ def post_report_form():
         report = Report(title, report_no, content, recipient, sender, date_submitted, status, date_time)
         report_id = Report_db.insert_new(report)
         
-        flash("Report submitted successfully!", "success")
-        return redirect(url_for('view_report', report_id=report_id))
-
+        # flash("Report submitted successfully!", "success")
+        # return redirect(url_for('view_report', report_id=report_id))
+        return jsonify({"message" : "Report submitted successfully!", report_id:report_id, "status" : "success"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/view/report/<report_id>')
 def view_report(report_id):   
@@ -1814,10 +1887,12 @@ def view_report(report_id):
         user_profile = User_db.get_user_by_oid(id)
         report = Report_db.get_by_report_id(report_id)
     
-        return render_template('pages/view_report.html', report=report, user_profile=user_profile)
+        # return render_template('pages/view_report.html', report=report, user_profile=user_profile)
+        return jsonify({report:report, user_profile:user_profile, "status" : "success"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/report/completed/<report_id>')
 def mark_report_completed(report_id):
@@ -1826,14 +1901,17 @@ def mark_report_completed(report_id):
         marked = Report_db.mark_completed(report_id)
 
         if marked: 
-            flash('Report marked completed',"success")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash('Report marked completed',"success")
+            # return redirect(url_for('view_report', report_id=report_id))
+            return jsonify({"message" : "Report marked completed", "status" : "success"})
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/report/incomplete/<report_id>')
 def mark_report_incomplete(report_id):
@@ -1842,14 +1920,17 @@ def mark_report_incomplete(report_id):
         marked = Report_db.mark_incomplete(report_id)
 
         if marked: 
-            flash('Report marked incomplete',"success")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash('Report marked incomplete',"success")
+            # return redirect(url_for('view_report', report_id=report_id))
+            return jsonify({"message" : "Report marked incomplete'", "status" : "success"})
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.post('/report/feedback/<report_id>') 
 def report_feedback(report_id):
@@ -1859,14 +1940,17 @@ def report_feedback(report_id):
         submitted = Report_db.report_feedback(report_id, feedback)
         
         if submitted: 
-            flash('Feedback sent successfully',"success")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash('Feedback sent successfully',"success")
+            # return redirect(url_for('view_report', report_id=report_id))
+            return jsonify({"message" : 'Feedback sent successfully', "status" : "success"})
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.post('/report/edit/<report_id>')
 def edit_report(report_id):
@@ -1896,15 +1980,17 @@ def edit_report(report_id):
         updated = Report_db.update_report_dtls(report_id, dtls)
         
         if updated:
-            flash("Report edited successfully!", "success")
-            return redirect(url_for('view_report', report_id=report_id))
+            # flash("Report edited successfully!", "success")
+            # return redirect(url_for('view_report', report_id=report_id))
+            return jsonify({"message" : "Report edited successfully!", "status" : "success"})
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_report', report_id=report_id))
-
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 @app.get('/delete/report/<report_id>')
 def delete_report(report_id):
@@ -1914,15 +2000,17 @@ def delete_report(report_id):
             deleted = Report_db.delete_report(report_id)
             
             if deleted:
-                flash ("Report deleted successfully!", "success")
-                return redirect(url_for('all_submissions'))
+                # flash ("Report deleted successfully!", "success")
+                # return redirect(url_for('all_submissions'))
+                return jsonify({"message" : "Report deleted successfully!", "status" : "success"})
             else:
-                flash ('The request was unsuccessful!', "danger")
-                return redirect(url_for('view_report', report_id=report_id))
-                  
+                # flash ('The request was unsuccessful!', "danger")
+                # return redirect(url_for('view_report', report_id=report_id))
+                return jsonify({"message" : "Report marked incomplete'", "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
 @app.post('/submissions/create/projects')
@@ -1967,12 +2055,14 @@ def post_project_form():
         project = Project(topic, focus, objectives, recipient_dtls, sender, date_created, deadline, date_time)
         project_id = Project_db.insert_new(project)
         
-        flash("Project created successfully!", "success")
-        return redirect(url_for('view_project', project_id=project_id))
+        # flash("Project created successfully!", "success")
+        # return redirect(url_for('view_project', project_id=project_id))
+        return jsonify({"message" : "Project created successfully!", "status" : "success"})
 
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
 @app.get('/view/project/<project_id>')
@@ -2008,8 +2098,9 @@ def view_project(project_id):
         else:
             return render_template('pages/view_project.html', project=project, user_profile=user_profile, id=id, display=display)
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/project/completed/<project_id>/<id>')
 def mark_project_completed(project_id, id):
@@ -2028,12 +2119,13 @@ def mark_project_completed(project_id, id):
             flash('Project marked completed',"success")
             return redirect(url_for('project_submissions', project_id=project_id))
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('project_submissions', project_id=project_id))
-
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/project/incomplete/<project_id>/<id>') 
 def mark_project_incomplete(project_id, id):
@@ -2052,11 +2144,13 @@ def mark_project_incomplete(project_id, id):
             flash('Project marked incomplete',"success")
             return redirect(url_for('project_submissions', project_id=project_id))
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('project_submissions', project_id=project_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.post('/project/edit/<project_id>')
 def edit_project(project_id):
@@ -2104,12 +2198,13 @@ def edit_project(project_id):
             flash("Project details edited successfully!", "success")
             return redirect(url_for('view_project', project_id=project_id))
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('view_project', project_id=project_id))
-
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login')) 
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/delete/project/<project_id>')
 def delete_project(project_id):
@@ -2126,8 +2221,9 @@ def delete_project(project_id):
                 return redirect(url_for('view_project', project_id=project_id))
                   
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
     
 @app.post('/project/submit/<project_id>')
@@ -2219,8 +2315,9 @@ def submit_project(project_id):
             return redirect(url_for('view_project', project_id=project_id))
         
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
 @app.get('/project/submissions/<project_id>')
@@ -2239,8 +2336,9 @@ def project_submissions(project_id):
             flash('No submissions made yet', "info")
             return redirect(url_for('view_project', project_id=project_id))
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
 @app.get('/project/submissions/download/<project_id>/<id>')
@@ -2264,8 +2362,9 @@ def download_project_submissions(project_id, id):
         return send_file(urllib.request.urlopen(file_url), download_name=file_name, as_attachment=True)
 
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/project/send/feedback/<project_id>/<id>')
 def send_feedback(project_id, id):
@@ -2284,8 +2383,9 @@ def send_feedback(project_id, id):
         return render_template('pages/send_feedback.html', user_profile=user_profile, project=project, submission=submission)
 
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.post('/submit/feedback/<project_id>/<id>') 
 def submit_feedback(project_id, id):
@@ -2304,11 +2404,13 @@ def submit_feedback(project_id, id):
             flash('Feedback sent successfully',"success")
             return redirect(url_for('project_submissions', project_id=project_id))
         else:
-            flash('An error occurred! Try again', "danger")
-            return redirect(url_for('project_submissions', project_id=project_id))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.post('/todo/create') 
 def create_todo():
@@ -2331,8 +2433,9 @@ def create_todo():
         })
     
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.get('/todo/delete/<todo_id>')
 def delete_todo(todo_id):    
@@ -2344,11 +2447,13 @@ def delete_todo(todo_id):
                 'description':"deleted"
             })
         else:
-            flash  ('An error occured!', "danger")
-            return redirect(url_for('home'))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.post('/todo/<todo_id>/set-completed')
 def mark_completed(todo_id):    
@@ -2369,11 +2474,13 @@ def mark_completed(todo_id):
                 'completed':status  
             })
         else:
-            flash  ('An error occured!', "danger")
-            return redirect(url_for('home'))
+            # flash('An error occurred! Try again', "danger")
+            # return redirect(url_for('view_request', request_id=request_id))
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
 @app.post('/todos/filter')
@@ -2421,12 +2528,10 @@ def task_filter():
                 else:
                     continue
             return jsonify({ 'taskCompleted': taskCompleted})
-            
-             
-        
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
 @app.get('/all/todos')
@@ -2439,8 +2544,9 @@ def all_todos():
         return render_template('pages/all_todos.html', all_todos=all_todos, user_profile=user_profile)
 
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.get('/attendance')
 def mark_atendance():
@@ -2518,8 +2624,9 @@ def mark_atendance():
                 return redirect(url_for('home'))
 
     else:
-        flash  ('you are not logged in!', "danger")
-        return redirect(url_for('login'))
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
         
 
 @app.post('/api/user/attendance')
