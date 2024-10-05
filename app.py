@@ -2090,13 +2090,16 @@ def view_project(project_id):
                 
         if role=="Admin":
             interns = User_db.get_all_users()
-            return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id)
-        
+            # return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id)
+            return jsonify({project:project, user_profile:user_profile, interns:interns, id:id,"status" : "success"})
         elif role=="Lead":
             interns = User_db.get_users_by_stack(stack)
-            return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id, display=display)
+            # return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id, display=display)
+            return jsonify({project:project, user_profile:user_profile, interns:interns, id:id, display:display, "status" : "success"})
+
         else:
-            return render_template('pages/view_project.html', project=project, user_profile=user_profile, id=id, display=display)
+            # return render_template('pages/view_project.html', project=project, user_profile=user_profile, id=id, display=display)
+            return jsonify({project:project, user_profile:user_profile, id:id, display:display, "status" : "success"})
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
@@ -2116,8 +2119,9 @@ def mark_project_completed(project_id, id):
     
 
         if marked: 
-            flash('Project marked completed',"success")
-            return redirect(url_for('project_submissions', project_id=project_id))
+            # flash('Project marked completed',"success")
+            # return redirect(url_for('project_submissions', project_id=project_id))
+            return jsonify({"message": 'Project marked completed', "status" : "success"})
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
@@ -2141,8 +2145,9 @@ def mark_project_incomplete(project_id, id):
     
 
         if marked: 
-            flash('Project marked incomplete',"success")
-            return redirect(url_for('project_submissions', project_id=project_id))
+            # flash('Project marked incomplete',"success")
+            # return redirect(url_for('project_submissions', project_id=project_id))
+            return jsonify({"message": 'Project marked incompleted', "status" : "success"})
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
@@ -2195,8 +2200,9 @@ def edit_project(project_id):
         updated = Project_db.update_project_dtls(project_id, dtls)
         
         if updated:
-            flash("Project details edited successfully!", "success")
-            return redirect(url_for('view_project', project_id=project_id))
+            # flash("Project details edited successfully!", "success")
+            # return redirect(url_for('view_project', project_id=project_id))
+            return jsonify({"message": "Project details edited successfully!", "status" : "success"})
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
@@ -2214,12 +2220,13 @@ def delete_project(project_id):
             deleted = Project_db.delete_project(project_id)
             
             if deleted:
-                flash ("Project deleted successfully!", "success")
-                return redirect(url_for('intern_submissions'))
+                # flash ("Project deleted successfully!", "success")
+                # return redirect(url_for('intern_submissions'))
+                return jsonify({"message": "Project deleted successfully!", "status" : "success"})
             else:
-                flash ('The request was unsuccessful!', "danger")
-                return redirect(url_for('view_project', project_id=project_id))
-                  
+                # flash ('The request was unsuccessful!', "danger")
+                # return redirect(url_for('view_project', project_id=project_id))
+                return jsonify({"message": 'The request was unsuccessful!', "status" : "danger"})
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
@@ -2271,11 +2278,14 @@ def submit_project(project_id):
                         uploaded = Project_db.submit_project(project_id, submitted, no_submissions)
 
                         if uploaded:
-                            flash('Project submitted successfully',"success")
-                            return redirect(url_for('view_project', project_id=project_id))
+                            # flash('Project submitted successfully',"success")
+                            # return redirect(url_for('view_project', project_id=project_id))
+                            return jsonify({"message": 'Project submitted successfully', "status" : "success"})
                         else:
-                            flash('An error occurred! Try again', "danger")
-                            return redirect(url_for('view_project', project_id=project_id))
+                            # flash('An error occurred! Try again', "danger")
+                            # return redirect(url_for('view_project', project_id=project_id))
+                            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+
                     else:
                         now = datetime.now().strftime
                         month = now("%B")
@@ -2296,24 +2306,26 @@ def submit_project(project_id):
                         
                         uploaded = Project_db.submit_project(project_id, project_submitted, no_submissions)
 
-                        if uploaded: 
-                            flash('Project submitted successfully',"success")
-                            return redirect(url_for('view_project', project_id=project_id))
+                        if uploaded:
+                            # flash('Project submitted successfully',"success")
+                            # return redirect(url_for('view_project', project_id=project_id))
+                            return jsonify({"message": 'Project submitted successfully', "status" : "success"})
                         else:
-                            flash('An error occurred! Try again', "danger")
-                            return redirect(url_for('view_project', project_id=project_id))
+                            # flash('An error occurred! Try again', "danger")
+                            # return redirect(url_for('view_project', project_id=project_id))
+                            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
             except:
-                flash("Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "danger")
-                return redirect(url_for('view_project', project_id=project_id))
-            
+                # flash("Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "danger")
+                # return redirect(url_for('view_project', project_id=project_id))
+                return jsonify({"message" : "Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "status" : "danger"})
             else:
-                flash('file upload error!', "danger")
-                return redirect(url_for('view_project', project_id=project_id))
-        
+                # flash('file upload error!', "danger")
+                # return redirect(url_for('view_project', project_id=project_id))
+                return jsonify({"message" : 'file upload error!', "status" : "danger"})
         else:
-            flash('Invalid file format! Try again', "danger")
-            return redirect(url_for('view_project', project_id=project_id))
-        
+            # flash('Invalid file format! Try again', "danger")
+            # return redirect(url_for('view_project', project_id=project_id))
+            return jsonify({"message" : 'Invalid file format! Try again', "status" : "danger"})
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
@@ -2330,15 +2342,17 @@ def project_submissions(project_id):
             submissions = Project_db.get_by_project_id(project_id)["submissions"]
             topic = Project_db.get_by_project_id(project_id)["topic"]
 
-            
-            return render_template('pages/project_submissions.html', details=submissions, user_profile=user_profile, topic=topic)
+            # return render_template('pages/project_submissions.html', details=submissions, user_profile=user_profile, topic=topic)
+            return jsonify({"details":submissions, user_profile:user_profile, topic:topic, "status" : "success"})
         else:
-            flash('No submissions made yet', "info")
-            return redirect(url_for('view_project', project_id=project_id))
+            # flash('No submissions made yet', "info")
+            # return redirect(url_for('view_project', project_id=project_id))
+            return jsonify({"message" : 'No submissions made yet', "status" : "info"})
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        
 
 
 @app.get('/project/submissions/download/<project_id>/<id>')
@@ -2359,7 +2373,8 @@ def download_project_submissions(project_id, id):
         file_name = upload["file_name"]
         app.logger.info(file_url)
         
-        return send_file(urllib.request.urlopen(file_url), download_name=file_name, as_attachment=True)
+        response = send_file(urllib.request.urlopen(file_url), download_name=file_name, as_attachment=True)
+        return jsonify({response:response, "status" : "success"}), 200 #Checkout for error
 
     else:
         # flash  ('you are not logged in!', "danger")
@@ -2380,8 +2395,8 @@ def send_feedback(project_id, id):
                 submission=x
                 break
         
-        return render_template('pages/send_feedback.html', user_profile=user_profile, project=project, submission=submission)
-
+        # return render_template('pages/send_feedback.html', user_profile=user_profile, project=project, submission=submission)
+        return ({ user_profile:user_profile, project:project, submission:submission, "status" : "success"})
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
@@ -2401,8 +2416,9 @@ def submit_feedback(project_id, id):
     
 
         if submitted: 
-            flash('Feedback sent successfully',"success")
-            return redirect(url_for('project_submissions', project_id=project_id))
+            # flash('Feedback sent successfully',"success")
+            # return redirect(url_for('project_submissions', project_id=project_id))
+            return jsonify({"message" : 'Feedback sent successfully', "status" : "success"})
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
