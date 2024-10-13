@@ -1,7 +1,7 @@
 from flask import Flask, session, render_template, redirect, url_for, request, flash, send_file, jsonify
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from flask_mail import Mail, Message
-from flask_cors import CORS
+# from flask_cors import CORS
 from db.models import *
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -32,7 +32,7 @@ PROJECT_FOLDER = 'submissions/projects'
 
 
 app = Flask(__name__)
-CORS(app)
+# CORS(app)
 
 bcrypt = Bcrypt(app)
 
@@ -94,8 +94,8 @@ def authenticate_user():
             
             response = {
                 "message": f"Welcome! {user_profile['fullname']}",
-                "status" : "success"
-                # "user_profile": user_profile
+                "status" : "success",
+                "user_profile": user_profile
             }
             return response, 200
         else:
@@ -123,24 +123,20 @@ def confirm_credentials():
     if status == "false":
         uid = request.json.get("uid")
         email = request.json.get("email")
-        print(uid, email)
         user = User_db.get_user_by_uid(uid)
         
         if user:
             if user["email"]==email:
                 otp = generate.OTP()
-                print(otp)
                 try:
                     msg = Message('SSRL password recovery', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
                     msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
                     
-                    # mail.send(msg)
+                    mail.send(msg)
                     
                     session["uid"]=uid
                     session["otp"]=otp
                     
-                    print(session["otp"])
-
                     response = {
                         "message": "Check your email for the OTP",
                         "otp": otp, #To confirm OTP page
@@ -181,9 +177,8 @@ def confirm_otp():
     
     if status == "false": 
         input_otp = request.json.get("otp")
-        # otp = session["otp"]
-        # print(input_otp, otp)
-        if input_otp == "000000":
+        otp = session["otp"]
+        if input_otp == otp:
             session.pop("otp", None)
             session["confirmed"] = "true"
             return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 # To change password
@@ -195,12 +190,13 @@ def confirm_otp():
 @app.post('/change/password')
 def change_password():
     new_pwd = request.json.get("new_pwd")
-    # confirm_pwd = request.form.get("confirm_pwd") # Confirm in the frontend
     
-    # if new_pwd == confirm_pwd:
+    # confirm_pwd = request.form.get("confirm_pwd") 
+    # if new_pwd == confirm_pwd: # Confirm in the frontend
+    
     try: 
         uid = session.get("uid", None) 
-        print(uid)
+        # print(uid)
         hashed_pwd = generate_password_hash(new_pwd)
         dtls = updatePwd(hashed_pwd)
         updated = User_db.update_user_profile(uid, dtls)
@@ -225,18 +221,20 @@ def change_password():
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home/me')
-def home():
+def home_me():
     if "user_id" in session:
         user_id = session.get("user_id")
         uid = session.get("user_uid")
-        user_role = session.get("user_role")
+        user_role = convert_to_json_serializable(session.get("user_role")) 
         stack = session.get("stack")
         print(user_id, uid, user_role, stack)
         user_profile = User_db.get_user_by_oid(user_id)
         todos = list(Todos_db.get_todos_by_user_id_limited(user_id))
         all_todos = list(Todos_db.get_todos_by_user_id(user_id))
         
-        now = datetime.now().strftime
+        # now = datetime.now().strftime
+        
+        taskCompleted = 0
         
         for td in all_todos:
             if td["completed"]==True:
@@ -247,7 +245,7 @@ def home():
             else:
                 continue
             
-        if user_role=="Admin":
+        if user_role=="admin":
             members = list(User_db.get_all_users_limited())
             reports = list(Report_db.get_by_recipient_limited(position=user_role))
             requests = list(Request_db.get_by_recipient_limited(position=user_role, user_id=user_id))
@@ -256,8 +254,9 @@ def home():
             
             # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
         
-            response = {"user_profile" : user_profile, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted, "status" : "success"}
-            return jsonify({response}), 200
+            response = {"user_profile" : user_profile}, 200
+            # , "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted, "status" : "success"}
+            # return jsonify(response), 200
             
         elif user_role == "Intern":
             reports =list(Report_db.get_by_sender(user_id, uid))
@@ -279,7 +278,7 @@ def home():
             members = list(User_db.get_users_by_stack_limited(stack))
             
             response = {"taskCompleted" : taskCompleted, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
-            return jsonify({response}), 200
+            return jsonify(response), 200
         
         elif user_role == "Lead":
             reports =list(Report_db.get_by_sender(user_id, uid))
@@ -289,7 +288,7 @@ def home():
             members = list(User_db.get_users_by_stack_limited(stack))
             
             response = {"taskCompleted" : taskCompleted,  "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
-            return jsonify({response}), 200
+            return jsonify(response), 200
         else:
             return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
@@ -349,23 +348,24 @@ def show_user_profile(requested_id):
     
 @app.post('/Admin/create/user')
 def create_user():
-    if "user_id" in session:
-        user_role = session["user_role"]
+    # if "user_id" in session:
+    #     user_role = session["user_role"]
         
-        if user_role == "Admin":
-            firstname = request.form.get("firstname")
-            surname = request.form.get("surname")
+    #     if user_role == "Admin":
+            # body = request.get_json()
+            firstname = request.json.get("firstname")
+            surname = request.json.get("surname")
             fullname = "{0} {1}".format(surname, firstname)
             pwd = generate.password()
             hashed_pwd = generate_password_hash(pwd)
             uid = generate.user_id(firstname)
-            stack = request.form.get("stack")
-            niche = request.form.get("niche")
-            role = request.form.get("role")
+            stack = request.json.get("stack")
+            niche = request.json.get("niche")
+            role = request.json.get("role")
             phone_num = "NIL"
-            email = request.form.get("email")
+            email = request.json.get("email")
             mentor_id = "NIL"
-            avatar = request.form.get("avatar")
+            avatar = request.json.get("avatar")
             task_id = "NIL"
             bio = "NIL"
             location = "NIL"
@@ -385,13 +385,13 @@ def create_user():
             
                 user_id = User_db.create_user(usr)
                 
-                return jsonify({"message" : f"user {uid} created successfully", "user_id" : user_id, "status" : "success"}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
+                return jsonify({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
             except:
                 return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
-        else:
-            return jsonify({"message": "Permission not granted", "status" : "info"}), 403
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
+    #     else:
+    #         return jsonify({"message": "Permission not granted", "status" : "info"}), 403
+    # else:
+    #     return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
     
 @app.get('/view/profile/me')
 def view_profile_me():
@@ -1851,9 +1851,9 @@ def post_report_form():
         uid = session["user_uid"]
         
         title = request.form.get("title")
-        report_no = request.form.get("report_no")
+        report_no = request.form.get("report_no") #Why?
         content = request.form.get("content")
-        recipient = request.form.get("recipient")
+        recipient = request.form.get("recipient") #Limit report recepients
         sender = {
             "_id": user_id,
             "uid": uid  

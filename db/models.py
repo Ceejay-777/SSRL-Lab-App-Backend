@@ -1,12 +1,14 @@
 from pymongo import MongoClient
 from bson.objectid import ObjectId 
 from properties import *
+import os
 import string, random
+
 
 uri_web = db_uri
 uri_local = "mongodb://localhost:27017"
-client = MongoClient("mongodb+srv://Faluyi:Akindele@cluster0.ozepuyt.mongodb.net/?retryWrites=true&w=majority")
-db = client['SSRL_DB']
+client = MongoClient("mongodb+srv://smartsystemlaboratory:vu52ZVyLHpAkRrGk@cluster0.lk2pi.mongodb.net/")
+db = client['LAB_APP_DB']
 Users = db['Users']
 Todos = db['Todos']
 Eqpts = db['Equipments']
@@ -17,6 +19,7 @@ Projects = db["projects"]
 Inventory = db["Inventory"]
 Attendance = db["Attendance"]
 Attendance_v2 = db["Attendance_v2"]
+
 
 
 class Userdb:
@@ -506,5 +509,14 @@ def formatAttendance(dtls):
 def sortFunc(e):
   return e["date_time"]
 
+
+
+if "__name__"=="__main__":
+    eqpt_db = Eqptdb()
+    
+    dtls = Eqpt("REISTOR", "1", "RESISTOR", "22/2222", "KDBEH", "ACTIVE", "", "")
+    
+    eqpt_id = eqpt_db.new_input(dtls)
+    print(eqpt_id)
 
 
