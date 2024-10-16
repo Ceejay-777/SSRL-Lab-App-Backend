@@ -221,7 +221,7 @@ def change_password():
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home/me')
-def home_me():
+def home():
     if "user_id" in session:
         user_id = session.get("user_id")
         uid = session.get("user_uid")
@@ -245,7 +245,7 @@ def home_me():
             else:
                 continue
             
-        if user_role=="admin":
+        if user_role=="Admin":
             members = list(User_db.get_all_users_limited())
             reports = list(Report_db.get_by_recipient_limited(position=user_role))
             requests = list(Request_db.get_by_recipient_limited(position=user_role, user_id=user_id))
@@ -254,9 +254,9 @@ def home_me():
             
             # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
         
-            response = {"user_profile" : user_profile}, 200
-            # , "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted, "status" : "success"}
-            # return jsonify(response), 200
+            response = {"user_profile" : user_profile, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted, "status" : "success"}
+                
+            return jsonify(convert_to_json_serializable(response)), 200
             
         elif user_role == "Intern":
             reports =list(Report_db.get_by_sender(user_id, uid))
@@ -278,7 +278,7 @@ def home_me():
             members = list(User_db.get_users_by_stack_limited(stack))
             
             response = {"taskCompleted" : taskCompleted, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
-            return jsonify(response), 200
+            return jsonify(convert_to_json_serializable(response)), 200
         
         elif user_role == "Lead":
             reports =list(Report_db.get_by_sender(user_id, uid))
@@ -288,19 +288,18 @@ def home_me():
             members = list(User_db.get_users_by_stack_limited(stack))
             
             response = {"taskCompleted" : taskCompleted,  "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
-            return jsonify(response), 200
+            return jsonify(convert_to_json_serializable(response)), 200
         else:
             return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
-@app.get('/view/members') #Interns tab 
+@app.get('/view/members') #Personnel tab 
 def view_members():
     if "user_id" in session:
         user_role = session["user_role"]
         stack = session["stack"]
         id = session["user_id"]
-        user_profile = User_db.get_user_by_oid(id)
         if user_role=="Admin":
             leads = list(User_db.get_user_by_role(role = "Lead"))
             interns = list(User_db.get_user_by_role(role="Intern"))
@@ -311,36 +310,38 @@ def view_members():
             hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
             
             app.logger.info(leads)
-            return jsonify({
+            response = {
             "softlead": softlead,
             "hardlead": hardlead,
             "softinterns": softinterns,
             "hardinterns": hardinterns,
             "status" : "success"
-        }), 200
+        } 
+            return jsonify(convert_to_json_serializable(response)), 200
             
         elif user_role == "Lead" and (stack=="Software" or stack=="Hardware"):
             members = list(User_db.get_users_by_stack(stack))
             app.logger.info(members)
-            
-            return jsonify({
+            response = {
             "members": members,
             "status" : "success"
-            }), 200
+            }
+            return jsonify(convert_to_json_serializable(response)), 200
         else:
             return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
-@app.get('/show/profile/<requested_id>')
+@app.get('/show/profile/<requested_id>') #user ID created by database
 def show_user_profile(requested_id):
     if "user_id" in session:
         user_role = session["user_role"]
         stack = session["stack"]
-        requested_profile = User_db.get_user_by_oid(requested_id)
+        requested_profile = User_db.get_user_by_uid(requested_id)
         
         if user_role == "Admin" or (user_role== "Lead" and stack==requested_profile["stack"]):
-            return jsonify({"requested_profile" : requested_profile, "status" : "success" }), 200
+            response = {"requested_profile" : requested_profile, "status" : "success" }
+            return jsonify(convert_to_json_serializable(response)), 200
         else:
             return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin", "status" : "info"}), 401
     else:
@@ -348,11 +349,10 @@ def show_user_profile(requested_id):
     
 @app.post('/Admin/create/user')
 def create_user():
-    # if "user_id" in session:
-    #     user_role = session["user_role"]
+    if "user_id" in session:
+        user_role = session["user_role"]
         
-    #     if user_role == "Admin":
-            # body = request.get_json()
+        if user_role == "Admin" or user_role == "Lead":
             firstname = request.json.get("firstname")
             surname = request.json.get("surname")
             fullname = "{0} {1}".format(surname, firstname)
@@ -388,30 +388,34 @@ def create_user():
                 return jsonify({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
             except:
                 return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
-    #     else:
-    #         return jsonify({"message": "Permission not granted", "status" : "info"}), 403
-    # else:
-    #     return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
+        else:
+            return jsonify({"message": "Permission not granted", "status" : "info"}), 403
+    else:
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
     
 @app.get('/view/profile/me')
 def view_profile_me():
     if "user_id" in session:
         current_user_id = session["user_id"]
         user_profile = User_db.get_user_by_oid(current_user_id)
-        return jsonify({"user_profile" : user_profile, "status" : "success"}), 200 #Convert first
+        response = {"user_profile" : user_profile, "status" : "success"}
+        return jsonify(convert_to_json_serializable(response)), 200 
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.post('/user/edit/profile')
+@app.post('/user/edit/profile') #Send defaultvalues with request body
 def user_edit_profile(): 
     if "user_id" in session:
         user_id = session["user_id"]
-        avatar = request.files['avatar']
-        phone_num = request.form.get("phone_num")
-        bio = request.form.get("bio")
-        location = request.form.get("location")
-        bday = request.form.get("bday")
-        email = request.form.get("email")
+        
+        if 'avatar' not in request.files: avatar = None
+        else: avatar = request.files['avatar']
+        
+        phone_num = request.json.get("phone_num")
+        bio = request.json.get("bio")
+        location = request.json.get("location")
+        bday = request.json.get("bday")
+        email = request.json.get("email")
         if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
             try: 
                 uploaded = cloudinary.uploader.upload(avatar, folder="smart_app/avatars", resource_type="image")
@@ -449,21 +453,69 @@ def admin_edit_profile(edit_id):
     if "user_id" in session:
         user_role = session["user_role"]
         user_id = session["user_id"]
+        # user_id = User_db.get
         
-        if user_role=="Admin":
-            profile = User_db.get_user_by_oid(user_id)
-            firstname = request.form.get("firstname")
-            surname = request.form.get("surname")
+        if user_role=="Admin" and edit_id != user_id:
+            firstname = request.json.get("firstname")
+            surname = request.json.get("surname")
             fullname = "{0} {1}".format(surname, firstname)
-            stack = request.form.get("stack")
-            niche = request.form.get("niche")
-            role = request.form.get("role")
-            avatar = request.files['avatar']
-            phone_num = request.form.get("phone_num")
-            email = request.form.get("email")
-            bio = request.form.get("bio")
-            location = request.form.get("location")
-            bday = request.form.get("bday")
+            stack = request.json.get("stack")
+            niche = request.json.get("niche")
+            role = request.json.get("role")
+            # mentor_id = request.json.get("mentor_id")
+            edit_profile = User_db.get_user_by_uid(edit_id)
+
+            if edit_profile["firstname"]==firstname:
+                uid = edit_profile["uid"]
+                dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
+
+                updated = User_db.update_user_profile_by_oid(edit_id, dtls)
+            
+                if updated:
+                    flash("profile updated successfully", "success")
+                    return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
+                else:
+                    flash("profile update unsuccessful!", "danger")
+                    return redirect(url_for('view_members'))
+            else:
+                uid = generate.user_id(firstname)
+                
+                dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
+
+                try:
+                    msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [edit_profile["email"]])
+                    msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
+                    
+                    mail.send(msg)
+                    
+                    updated = User_db.update_user_profile_by_oid(edit_id, dtls)
+                    if updated:
+                        flash("Profile updated successful!", "success")
+                        return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
+                    else:
+                        flash("profile update undsuccessful!", "danger")
+                        return redirect(url_for('view_members'))
+                except: 
+                    flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
+                    return redirect(url_for('view_members'))
+                
+        elif user_role=="Admin" or user_role == "Lead":
+            profile = User_db.get_user_by_oid(user_id)
+            firstname = request.json.get("firstname")
+            surname = request.json.get("surname")
+            fullname = "{0} {1}".format(surname, firstname)
+            stack = request.json.get("stack")
+            niche = request.json.get("niche")
+            role = request.json.get("role")
+            
+            if 'avatar' not in request.files:  avatar = None
+            else: avatar = request.files['avatar']
+            
+            phone_num = request.json.get("phone_num")
+            email = request.json.get("email")
+            bio = request.json.get("bio")
+            location = request.json.get("location")
+            bday = request.json.get("bday")
 
             if profile["firstname"]==firstname:
                 uid = profile["uid"]
@@ -534,49 +586,6 @@ def admin_edit_profile(edit_id):
                             return jsonify({"message": "image upload error!", "status" : "danger"}), 403
                     except: 
                         return jsonify({"message": "Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "status" : "danger"}), 500
-        # elif user_role=="Admin" and edit_id != user_id:
-        #     firstname = request.form.get("firstname")
-        #     surname = request.form.get("surname")
-        #     fullname = "{0} {1}".format(surname, firstname)
-        #     stack = request.form.get("stack")
-        #     niche = request.form.get("niche")
-        #     role = request.form.get("role")
-        #     #mentor_id = request.form.get("mentor_id")
-        #     edit_profile = User_db.get_user_by_oid(edit_id)
-
-        #     if edit_profile["firstname"]==firstname:
-        #         uid = edit_profile["uid"]
-        #         dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
-
-        #         updated = User_db.update_user_profile_by_oid(edit_id, dtls)
-            
-        #         if updated:
-        #             flash("profile updated successfully", "success")
-        #             return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
-        #         else:
-        #             flash("profile update unsuccessful!", "danger")
-        #             return redirect(url_for('view_members'))
-        #     else:
-        #         uid = generate.user_id(firstname)
-                
-        #         dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
-
-        #         try:
-        #             msg = Message('SSRL Profile Updated', sender = 'faluyiisaiah@gmail.com', recipients = [edit_profile["email"]])
-        #             msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
-                    
-        #             mail.send(msg)
-                    
-        #             updated = User_db.update_user_profile_by_oid(edit_id, dtls)
-        #             if updated:
-        #                 flash("Profile updated successful!", "success")
-        #                 return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
-        #             else:
-        #                 flash("profile update undsuccessful!", "danger")
-        #                 return redirect(url_for('view_members'))
-        #         except: 
-        #             flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
-        #             return redirect(url_for('view_members'))
         else:
             return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401
     else:
