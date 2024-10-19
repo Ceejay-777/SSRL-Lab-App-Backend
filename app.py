@@ -453,7 +453,10 @@ def admin_edit_profile(edit_id):
     if "user_id" in session:
         user_role = session["user_role"]
         user_id = session["user_id"]
-        # user_id = User_db.get
+        print(user_id)
+        # edit_user = User_db.get_user_by_uid(edit_id)
+        # user_id = edit_user['uid']
+        print(user_id, edit_id)
         
         if user_role=="Admin" and edit_id != user_id:
             firstname = request.json.get("firstname")
@@ -464,12 +467,13 @@ def admin_edit_profile(edit_id):
             role = request.json.get("role")
             # mentor_id = request.json.get("mentor_id")
             edit_profile = User_db.get_user_by_uid(edit_id)
+            oid = edit_profile["_id"]
 
             if edit_profile["firstname"]==firstname:
                 uid = edit_profile["uid"]
                 dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
 
-                updated = User_db.update_user_profile_by_oid(edit_id, dtls)
+                updated = User_db.update_user_profile_by_oid(oid, dtls)
             
                 if updated:
                     flash("profile updated successfully", "success")
@@ -488,7 +492,7 @@ def admin_edit_profile(edit_id):
                     
                     mail.send(msg)
                     
-                    updated = User_db.update_user_profile_by_oid(edit_id, dtls)
+                    updated = User_db.update_user_profile_by_oid(oid, dtls)
                     if updated:
                         flash("Profile updated successful!", "success")
                         return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
@@ -499,8 +503,8 @@ def admin_edit_profile(edit_id):
                     flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
                     return redirect(url_for('view_members'))
                 
-        elif user_role=="Admin" or user_role == "Lead":
-            profile = User_db.get_user_by_oid(user_id)
+        elif user_role=="Admin":
+            user_profile = User_db.get_user_by_oid(user_id)
             firstname = request.json.get("firstname")
             surname = request.json.get("surname")
             fullname = "{0} {1}".format(surname, firstname)
@@ -517,8 +521,8 @@ def admin_edit_profile(edit_id):
             location = request.json.get("location")
             bday = request.json.get("bday")
 
-            if profile["firstname"]==firstname:
-                uid = profile["uid"]
+            if user_profile["firstname"]==firstname:
+                uid = user_profile["uid"]
                 if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
                     try:
                         uploaded = cloudinary.uploader.upload(avatar, folder="smart_app/avatars", resource_type="image")
@@ -527,7 +531,7 @@ def admin_edit_profile(edit_id):
                             filename = uploaded["secure_url"]
                             dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
 
-                            updated = User_db.update_user_profile_by_oid(user_id, dtls)
+                            updated = User_db.update_user_profile_by_oid(oid, dtls)
                         
                             if updated:
                                 return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
@@ -538,7 +542,7 @@ def admin_edit_profile(edit_id):
                     except:
                         return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection", "status" : "danger"}), 500
                 else:
-                    user_profile = User_db.get_user_by_oid(user_id)
+                    user_profile = User_db.get_user_by_oid(oid)
                     filename = user_profile["avatar"]
                     dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
 
