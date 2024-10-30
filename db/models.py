@@ -15,7 +15,7 @@ Eqpts = db['Equipments']
 lost_eqpts = db["Lost_eqpt"]
 Requests = db["Requests"]
 Reports = db["Reports"]
-Projects = db["projects"]
+Projects = db["Projects"]
 Inventory = db["Inventory"]
 Attendance = db["Attendance"]
 Attendance_v2 = db["Attendance_v2"]
@@ -225,8 +225,11 @@ class Projectdb:
         self.collection = Projects
     
     def insert_new(self, request):
-        return self.collection.insert_one(request.__dict__).inserted_id  
-    
+        print(request.name)
+        existing_project = self.collection.find_one({"name": request.name})
+        if not existing_project:
+            return self.collection.insert_one(request.__dict__).inserted_id
+       
     def get_all(self):
         return self.collection.find().sort("date_time")
     
@@ -457,17 +460,19 @@ class Request:
         self.date_time = date_time
         
 class Project:
-    def __init__(self, topic, focus, objectives, recipient_dtls, sender, date_created, deadline, date_time) -> None:
-        self.topic = topic
-        self.focus = focus
+    def __init__(self, name, description, objectives, leads, team_members, sender, date_created, date_time) -> None:
+        self.name = name
+        self.description = description
         self.objectives = objectives
-        self.recipient_dtls = recipient_dtls
+        self.team_members = team_members
+        self.leads = leads
+        # self.recipient_dtls = recipient_dtls
         self.sender = sender
         self.date_created = date_created
-        self.deadline = deadline
+        # self.deadline = deadline
         self.date_time = date_time
         
-class Report:
+class Report: 
     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
         self.title = title
         self.report_no = report_no
