@@ -76,7 +76,7 @@ def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
 
-@app.post('/user/authenticate')
+@app.post('/login')
 def authenticate_user():
     user_uid = request.json.get("user_id")
     pwd = request.json.get("pwd")
@@ -192,7 +192,7 @@ def change_password():
     new_pwd = request.json.get("new_pwd")
     
     # confirm_pwd = request.form.get("confirm_pwd") 
-    # if new_pwd == confirm_pwd: # Confirm in the frontend
+    # if new_pwd == confirm_pwd:                            # Confirm in the frontend
     
     try: 
         uid = session.get("uid", None) 
@@ -246,15 +246,13 @@ def home():
                 continue
             
         if user_role=="Admin":
-            members = list(User_db.get_all_users_limited())
             reports = list(Report_db.get_by_recipient_limited(position=user_role))
             requests = list(Request_db.get_by_recipient_limited(position=user_role, user_id=user_id))
             projects = list(Project_db.get_by_sender_limited(user_id, uid))
-            interns = list(User_db.get_all_users())
             
             # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
         
-            response = {"user_profile" : user_profile, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "interns" : interns, "taskCompleted": taskCompleted, "status" : "success"}
+            response = {"user_profile" : user_profile, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"} #Removed members, interns and taskscompleted. Will add notifications.
                 
             return jsonify(convert_to_json_serializable(response)), 200
             
@@ -275,9 +273,7 @@ def home():
                 
             projects.sort(reverse=True, key=sortFunc)
                 
-            members = list(User_db.get_users_by_stack_limited(stack))
-            
-            response = {"taskCompleted" : taskCompleted, "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
+            response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}
             return jsonify(convert_to_json_serializable(response)), 200
         
         elif user_role == "Lead":
@@ -285,9 +281,8 @@ def home():
             requests = list(Request_db.get_by_sender(user_id, uid))
             projects = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
             attendance = list(Attendance_db.get_attendance(user_id))
-            members = list(User_db.get_users_by_stack_limited(stack))
             
-            response = {"taskCompleted" : taskCompleted,  "members" : members, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
+            response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
             return jsonify(convert_to_json_serializable(response)), 200
         else:
             return jsonify({"message": "Permission not granted", "status" : "info"}), 401
@@ -297,38 +292,25 @@ def home():
 @app.get('/view/members') #Personnel tab 
 def view_members():
     if "user_id" in session:
-        user_role = session["user_role"]
-        stack = session["stack"]
-        id = session["user_id"]
-        if user_role=="Admin":
-            leads = list(User_db.get_user_by_role(role = "Lead"))
-            interns = list(User_db.get_user_by_role(role="Intern"))
-            
-            softlead = [lead for lead in leads if lead['stack'] == "Software"]
-            hardlead = [lead for lead in leads if lead['stack'] == "Hardware"]
-            softinterns = [intern for intern in interns if intern['stack'] == "Software"]
-            hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
-            
-            app.logger.info(leads)
-            response = {
-            "softlead": softlead,
-            "hardlead": hardlead,
-            "softinterns": softinterns,
-            "hardinterns": hardinterns,
-            "status" : "success"
+        admins = list(User_db.get_user_by_role(role = "Admin"))
+        leads = list(User_db.get_user_by_role(role = "Lead"))
+        interns = list(User_db.get_user_by_role(role="Intern"))
+        
+        softlead = [lead for lead in leads if lead['stack'] == "Software"]
+        hardlead = [lead for lead in leads if lead['stack'] == "Hardware"]
+        softinterns = [intern for intern in interns if intern['stack'] == "Software"]
+        hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
+        
+        app.logger.info(leads)
+        response = {
+        "admins" : admins,
+        "softlead": softlead,
+        "hardlead": hardlead,
+        "softinterns": softinterns,
+        "hardinterns": hardinterns,
+        "status" : "success"
         } 
-            return jsonify(convert_to_json_serializable(response)), 200
-            
-        elif user_role == "Lead" and (stack=="Software" or stack=="Hardware"):
-            members = list(User_db.get_users_by_stack(stack))
-            app.logger.info(members)
-            response = {
-            "members": members,
-            "status" : "success"
-            }
-            return jsonify(convert_to_json_serializable(response)), 200
-        else:
-            return jsonify({"message": "Permission not granted", "status" : "info"}), 401
+        return jsonify(convert_to_json_serializable(response)), 200
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
@@ -362,10 +344,10 @@ def create_user():
             stack = request.json.get("stack")
             niche = request.json.get("niche")
             role = request.json.get("role")
-            phone_num = "NIL"
+            phone_num = request.json.get("phone_num")
             email = request.json.get("email")
             mentor_id = "NIL"
-            avatar = request.json.get("avatar")
+            avatar = "NIL"
             task_id = "NIL"
             bio = "NIL"
             location = "NIL"
@@ -465,13 +447,21 @@ def admin_edit_profile(edit_id):
             stack = request.json.get("stack")
             niche = request.json.get("niche")
             role = request.json.get("role")
+            if 'avatar' not in request.files:  avatar = None
+            else: avatar = request.files['avatar']
+            
+            phone_num = request.json.get("phone_num")
+            email = request.json.get("email")
+            bio = request.json.get("bio")
+            # location = request.json.get("location")
+            bday = request.json.get("bday")
             # mentor_id = request.json.get("mentor_id")
             edit_profile = User_db.get_user_by_uid(edit_id)
             oid = edit_profile["_id"]
 
             if edit_profile["firstname"]==firstname:
                 uid = edit_profile["uid"]
-                dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
+                dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role, filename, email, bio, bday, phone_num)
 
                 updated = User_db.update_user_profile_by_oid(oid, dtls)
             
@@ -616,7 +606,7 @@ def admin_add_lead(intern_uid):
                 updated = User_db.update_user_role(intern_uid, dtls)
             
                 if updated:
-                    return jsonify({"message": f"You've successfully made {intern_uid} the {stack} Lead", "status" : "success"}), 200
+                    return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
                 else:
                     return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 403
             else:

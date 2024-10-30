@@ -427,7 +427,7 @@ class updateAdmin:
         self.bday = bday
 
 class AdminUpdateUser:
-    def __init__(self, firstname, surname, fullname, uid, stack, niche, role) -> None:
+    def __init__(self, firstname, surname, fullname, uid, stack, niche, role, filename, email, bio, bday, phone_num) -> None:
         self.firstname = firstname
         self.surname = surname
         self.fullname = fullname
@@ -435,6 +435,11 @@ class AdminUpdateUser:
         self.stack = stack
         self.niche = niche
         self.role = role
+        self.avatar = filename
+        self.email = email
+        self.bio = bio
+        self.bday = bday
+        self.phone_num = phone_num
         
 class Request:
     def __init__(self, title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time) -> None:
