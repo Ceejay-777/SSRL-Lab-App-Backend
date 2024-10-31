@@ -2117,13 +2117,13 @@ def view_project(project_id):
 def mark_project_completed(project_id, id):
     
     if "user_id" in session:
-        project = Project_db.get_by_project_id(project_id)["submissions"]
-        for x in project:
+        submissions = Project_db.get_by_project_id(project_id)["submissions"]
+        for x in submissions:
             if x["id"]==id:
                 x["status"] = "Completed"
-                project[project.index(x)] = x
+                submissions[submissions.index(x)] = x
                 break
-        marked = Project_db.mark_project(project_id, project)
+        marked = Project_db.mark_project(project_id, submissions)
     
 
         if marked: 
@@ -2252,9 +2252,8 @@ def submit_project(project_id):
         filename = secure_filename(project.filename)
         
         if project and AllowedExtension.files(filename):
-            
             try:
-                uploaded = cloudinary.uploader.upload(project, folder="smart_app/projects", resource_type="raw")
+                uploaded = uploader.upload(project, folder="smart_app/projects", resource_type="raw")
 
                 if "secure_url" in uploaded:
                     filepath = uploaded["secure_url"]

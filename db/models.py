@@ -257,8 +257,8 @@ class Projectdb:
     def submit_project(self, project_id, dtls, no_submissions):
         return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":dtls, "no_submissions":no_submissions}}).modified_count>0
     
-    def mark_project(self,project_id, project):
-        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":project}}).modified_count>0
+    def mark_project(self,project_id, submissions):
+        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":submissions}}).modified_count>0
     
     def delete_project(self, project_id):
         return self.collection.delete_one({"_id":ObjectId(project_id)}).deleted_count>0
