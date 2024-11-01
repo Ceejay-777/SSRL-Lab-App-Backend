@@ -50,7 +50,7 @@ app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 
 cloudinary.config( 
-  cloud_name = "diaownipw", 
+  cloud_name = cloud_name, 
   api_key = cloud_key, 
   api_secret = cloud_secret,
   secure = True
@@ -2244,7 +2244,6 @@ def delete_project(project_id):
 @app.post('/project/submit/<project_id>')
 def submit_project(project_id):
     
-    
     if "user_id" in session:
         uid = session["user_uid"]
         id = session["user_id"]
@@ -2775,6 +2774,16 @@ def marked_in_users():
             "success": False,
             "response": "Server error"
         }), 500
+        
+@app.post("/upload_file")
+def upload_file(): 
+    file = request.files['file']
+    print(file)
+    response = cloudinary.uploader.upload(file, folder='test', upload_preset="intern_submissions")
+    return response['secure_url'] 
+
+#uploaded = uploader.upload(project, folder="smart_app/projects", resource_type="raw")
+
 
 
 if __name__=="__main__":
