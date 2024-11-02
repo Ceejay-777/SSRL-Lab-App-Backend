@@ -71,6 +71,11 @@ def convert_to_json_serializable(doc):
                 doc[k] = convert_to_json_serializable(v)
     return doc
 
+def upload_file_func(file, folder):
+    return cloudinary.uploader.upload(file, folder=folder, upload_preset="intern_submissions", resource_type="raw",  
+        unique_filename=False, 
+        overwrite=True)
+
 @app.get('/test')
 def test():
     res = {"message" : "Test success"}
@@ -2777,9 +2782,13 @@ def marked_in_users():
         
 @app.post("/upload_file")
 def upload_file(): 
+    if 'file' not in request.files:
+        return "No file part", 400
     file = request.files['file']
-    print(file)
-    response = cloudinary.uploader.upload(file, folder='test', upload_preset="intern_submissions")
+    if file.filename == '':
+        return "No selected file", 400
+    print("File: ", file)
+    response = upload_file_func(file.read(), "test")
     return response['secure_url'] 
 
 #uploaded = uploader.upload(project, folder="smart_app/projects", resource_type="raw")
