@@ -16,6 +16,7 @@ from bson import ObjectId
 import base64
 
 User_db = Userdb()
+Notifications = Notificationsdb()
 Eqpt_db = Eqptdb()
 lost_eqpt_db = lost_eqptdb()
 Inventory_db = Inventorydb()
@@ -25,7 +26,6 @@ Project_db = Projectdb()
 Todos_db = Todosdb()
 Attendance_db  = Attendancedb()
 Attendance_db_v2  = Attendancedb_v2()
-
 
 UPLOAD_FOLDER = 'static/images'
 PROJECT_FOLDER = 'submissions/projects'
@@ -197,7 +197,7 @@ def change_password():
     new_pwd = request.json.get("new_pwd")
     
     # confirm_pwd = request.form.get("confirm_pwd") 
-    # if new_pwd == confirm_pwd:                            # Confirm in the frontend
+    # if new_pwd == confirm_pwd: # Confirm in the frontend
     
     try: 
         uid = session.get("uid", None) 

@@ -10,6 +10,7 @@ uri_local = "mongodb://localhost:27017"
 client = MongoClient("mongodb+srv://smartsystemlaboratory:vu52ZVyLHpAkRrGk@cluster0.lk2pi.mongodb.net/")
 db = client['LAB_APP_DB']
 Users = db['Users']
+Notifications = db['Notifications']
 Todos = db['Todos']
 Eqpts = db['Equipments']
 lost_eqpts = db["Lost_eqpt"]
@@ -19,8 +20,6 @@ Projects = db["Projects"]
 Inventory = db["Inventory"]
 Attendance = db["Attendance"]
 Attendance_v2 = db["Attendance_v2"]
-
-
 
 class Userdb:
     def __init__(self) -> None:
@@ -67,6 +66,13 @@ class Userdb:
     
     def get_users_by_stack_limited(self, stack):
         return self.collection.find({"stack":stack}).limit(4)
+    
+class Notificationsdb:
+    def __init__(self):
+        self.collection = Notifications
+        
+    def send_notification(self, dtls):
+        return self.collection.insert_one(dtls).inserted_id
     
     
 class Todosdb:
@@ -374,6 +380,16 @@ class User:
         self.bio = bio
         self.location = location
         self.bday = bday
+        
+class Notification:
+    def __init__(self, title, receivers, type, message, status, sentAt) -> None:
+        self.title = title
+        self.receivers = receivers
+        self.type = type
+        self.message = message
+        self.status = status
+        self.status = status
+        self.sentAt = sentAt
 
 class Eqpt:
     def __init__(self, name, quantity, description, date_of_arrival, type, status, datetime_inputed, date_inserted) -> None:
