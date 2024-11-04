@@ -2257,7 +2257,8 @@ def submit_project(project_id):
         
         if project and AllowedExtension.files(filename):
             try:
-                uploaded = uploader.upload(project, folder="smart_app/projects", resource_type="raw")
+                uploaded = upload_file_func(project,"submissions/" )
+                print(uploaded)
 
                 if "secure_url" in uploaded:
                     filepath = uploaded["secure_url"]
