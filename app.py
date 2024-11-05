@@ -2257,13 +2257,12 @@ def submit_project(project_id):
         
         if project and AllowedExtension.files(filename):
             try:
-                uploaded = upload_file_func(project,"submissions/" )
+                uploaded = upload_file_func(project,"submissions/")
                 print(uploaded)
 
                 if "secure_url" in uploaded:
                     filepath = uploaded["secure_url"]
             
-                
                     if "submissions" in Project_db.get_by_project_id(project_id):
                         submitted = Project_db.get_by_project_id(project_id)["submissions"]
                         now = datetime.now().strftime
