@@ -260,9 +260,9 @@ def home():
             
             # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
         
-            response = {"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"} #Removed members, interns and taskscompleted. Will add notifications.
+            response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
                 
-            return jsonify(convert_to_json_serializable(response)), 200
+            return jsonify(response), 200
             
         elif user_role == "Intern":
             reports =list(Report_db.get_by_sender(user_id, uid))
@@ -2021,29 +2021,25 @@ def delete_report(report_id):
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
 
 @app.post('/create/projects') #Done for now
 def post_project_form():
     
     if "user_id" in session:
-        user_id = session["user_id"]
         uid = session["user_uid"]
         
         data = request.json
         name = data.get("name")
         description = data.get("description")
         objectives = data.get("objectives") #List
-        leads = data.get("lead") #List
+        leads = data.get("leads") #List
         team_members = data.get("team_members") #List
         # deadline = data.get("deadline")
-        
-        sender = {
-            # "_id": user_id,
-            "uid": uid  
-        }
-        
+        createdBy = uid
+        submissions = {"docs": [], "links": []} 
+           
         now = datetime.now().strftime
         month = now("%B")
         date = now("%d")
@@ -2052,6 +2048,7 @@ def post_project_form():
         # deadline_str = request.form.get("deadline")
         # deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
         date_time = datetime.now()
+        project_status = "Uncompleted"
         
         # if recipient=="Software" or recipient=="Hardware":
         #     recipient_dtls = {
@@ -2066,164 +2063,128 @@ def post_project_form():
         #         "name": User_db.get_user_by_oid(recipient)["uid"]
         #     }
         
-        project = Project(name, description, objectives, leads, team_members, sender, date_created, date_time) #Removed recipient_dtls, deadine
+        project = Project(name, description, objectives, leads, team_members, createdBy, project_status, submissions, date_created, date_time) #Removed recipient_dtls, deadline
         project_id = Project_db.insert_new(project)
+        
+        not_title = "New Project"
+        not_receivers = leads + team_members
+        not_type = "Project"
+        not_message = f"You have been added to a new project {name}. Check it out in your projects tab!"
+        not_status = "unread"
+        not_sentAt = datetime.now()
+        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
         
         if project_id:
             response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
+            Notifications.send_notification(notification)
         else:
-            response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "eror"})
-            
+            response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
         return(response)
     else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
 @app.get('/view/project/<project_id>')
 def view_project(project_id):
     
     if "user_id" in session:
-        id = session["user_id"]
-        role = session["user_role"]
-        stack = session["stack"]
+        # id = session["user_id"]
+        # role = session["user_role"]
+        # stack = session["stack"]
         
-        user_profile = User_db.get_user_by_oid(id)
+        # user_profile = User_db.get_user_by_oid(id)
         project = Project_db.get_by_project_id(project_id)
-        completed = int(0)
-        
-        if "submissions" in project:
-            for x in project["submissions"]:
-                if x["id"]==id and x["status"]=="Completed":
-                    completed = completed + 1
-                    break
-        if completed > 0:
-            display = "None"
-        else:
-            display = "block"
-           
-                
-        if role=="Admin":
-            interns = User_db.get_all_users()
-            # return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id)
-            return jsonify({project:project, user_profile:user_profile, interns:interns, id:id,"status" : "success"})
-        elif role=="Lead":
-            interns = User_db.get_users_by_stack(stack)
-            # return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id, display=display)
-            return jsonify({project:project, user_profile:user_profile, interns:interns, id:id, display:display, "status" : "success"})
+       
+        # if role=="Admin":
+        #     interns = User_db.get_all_users()
+        #     # return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id)
+        #     return jsonify({"project":project, "user_profile":user_profile, "interns":interns, "id":id,"status" : "success"})
+        # elif role=="Lead":
+        #     interns = User_db.get_users_by_stack(stack)
+        #     # return render_template('pages/view_project.html', project=project, user_profile=user_profile, interns=interns, id=id, display=display)
+        #     return jsonify({"project":project, "user_profile":user_profile, "interns":interns, "id":id, "status" : "success"})
 
-        else:
-            # return render_template('pages/view_project.html', project=project, user_profile=user_profile, id=id, display=display)
-            return jsonify({project:project, user_profile:user_profile, id:id, display:display, "status" : "success"})
+        # else:
+        #     # return render_template('pages/view_project.html', project=project, user_profile=user_profile, id=id, display=display)
+        #     return jsonify({"project":project, "user_profile":user_profile, "id":id, "status" : "success"})
+        response = convert_to_json_serializable({"project": project, "status": "success"})
+        return jsonify(response), 200
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
-@app.get('/project/completed/<project_id>/<id>')
-def mark_project_completed(project_id, id):
+@app.get('/project/completed/<project_id>')
+def mark_project_completed(project_id):
     
     if "user_id" in session:
-        submissions = Project_db.get_by_project_id(project_id)["submissions"]
-        for x in submissions:
-            if x["id"]==id:
-                x["status"] = "Completed"
-                submissions[submissions.index(x)] = x
-                break
-        marked = Project_db.mark_project(project_id, submissions)
-    
-
+        project = Project_db.get_by_project_id(project_id)
+        marked = Project_db.mark_project(project_id, "Completed")
+        members = Project_db.get_project_members(project_id)
+        print(members)
+        
+        not_title = "Project Marked as Complete"
+        # not_receivers = leads + team_members
+        not_type = "Project"
+        # not_message = f"You have been added to a new project {name}. Check it out in your projects tab!"
+        not_status = "unread"
+        not_sentAt = datetime.now()
+        # notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        
         if marked: 
             # flash('Project marked completed',"success")
             # return redirect(url_for('project_submissions', project_id=project_id))
-            return jsonify({"message": 'Project marked completed', "status" : "success"})
+            return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
-@app.get('/project/incomplete/<project_id>/<id>') 
-def mark_project_incomplete(project_id, id):
-    
+@app.get('/project/incomplete/<project_id>') 
+def mark_project_incomplete(project_id):
     if "user_id" in session:
-        project = Project_db.get_by_project_id(project_id)["submissions"]
-        for x in project:
-            if x["id"]==id:
-                x["status"] = "Incomplete"
-                project[project.index(x)] = x
-                break
-        marked = Project_db.mark_project(project_id, project)
+        marked = Project_db.mark_project(project_id, "Uncompleted")
     
-
         if marked: 
             # flash('Project marked incomplete',"success")
             # return redirect(url_for('project_submissions', project_id=project_id))
-            return jsonify({"message": 'Project marked incompleted', "status" : "success"})
+            return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
-@app.post('/project/edit/<project_id>')
+@app.patch('/project/edit/<project_id>')
 def edit_project(project_id):
     
     if "user_id" in session:
-        user_id = session["user_id"]
-        uid = session["user_uid"]
+        data = request.json
+        name = data.get("name")
+        existing_name = Project_db.existing_project_name(name)
         
-        topic = request.form.get("topic")
-        focus = request.form.get("focus")
-        objectives = request.form.get("objectives")
-        recipient = request.form.get("recipient")
-        deadline_str = request.form.get("deadline")
-        deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
-        date_time = datetime.now()
+        if existing_name:
+            return jsonify({"message" : f"Project with name '{name}' already exists.", "status": "error"}), 409
         
-        sender = {
-            "_id": user_id,
-            "uid": uid  
-                  
-        }
-        now = datetime.now().strftime
-        month = now("%B")
-        date = now("%d")
-        year = now("%Y")
-        date_submitted = "{0} {1}, {2}".format(month, date, year)
-        
-        if recipient=="Software" or recipient=="Hardware":
-            recipient_dtls = {
-                "category":"all",
-                "recipient": recipient,
-                "name": "All stack members"
-            }
-        else:
-            recipient_dtls = {
-                "category":"one",
-                "recipient": str(recipient),
-                "name": User_db.get_user_by_oid(recipient)["uid"]
-            }
-        
-        dtls = Project(topic, focus, objectives, recipient_dtls, sender, date_submitted, deadline, date_time)
-        updated = Project_db.update_project_dtls(project_id, dtls)
-        
+        updated = Project_db.update_project_dtls(project_id, data)
         if updated:
             # flash("Project details edited successfully!", "success")
             # return redirect(url_for('view_project', project_id=project_id))
-            return jsonify({"message": "Project details edited successfully!", "status" : "success"})
+            return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
         else:
             # flash('An error occurred! Try again', "danger")
             # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
 @app.get('/delete/project/<project_id>')
 def delete_project(project_id):
@@ -2257,7 +2218,7 @@ def submit_project(project_id):
         
         if project and AllowedExtension.files(filename):
             try:
-                uploaded = upload_file_func(project,"submissions/")
+                uploaded = upload_file_func(project, "submissions/")
                 print(uploaded)
 
                 if "secure_url" in uploaded:
@@ -2296,7 +2257,6 @@ def submit_project(project_id):
                             # flash('An error occurred! Try again', "danger")
                             # return redirect(url_for('view_project', project_id=project_id))
                             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-
                     else:
                         now = datetime.now().strftime
                         month = now("%B")

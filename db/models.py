@@ -72,7 +72,10 @@ class Notificationsdb:
         self.collection = Notifications
         
     def send_notification(self, dtls):
-        return self.collection.insert_one(dtls).inserted_id
+        print("Notification Created")
+        return self.collection.insert_one(dtls.__dict__).inserted_id
+    
+    # Get all notifications for a particular user
     
     
 class Todosdb:
@@ -231,10 +234,12 @@ class Projectdb:
         self.collection = Projects
     
     def insert_new(self, request):
-        print(request.name)
         existing_project = self.collection.find_one({"name": request.name})
         if not existing_project:
             return self.collection.insert_one(request.__dict__).inserted_id
+        
+    def existing_project_name(self, name):
+        return self.collection.find_one({"name": name})
        
     def get_all(self):
         return self.collection.find().sort("date_time")
@@ -258,13 +263,16 @@ class Projectdb:
         return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1).limit(4)
     
     def update_project_dtls(self, project_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":dtls.__dict__}).modified_count>0
+        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":dtls}).modified_count>0
     
     def submit_project(self, project_id, dtls, no_submissions):
         return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":dtls, "no_submissions":no_submissions}}).modified_count>0
     
-    def mark_project(self,project_id, submissions):
-        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":submissions}}).modified_count>0
+    def mark_project(self,project_id, status):
+        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"status":status}}).modified_count>0
+    
+    def get_project_members(self, project_id):
+        return self.find_one({'_id': project_id}, {'team_members': 1, 'leads': 1})
     
     def delete_project(self, project_id):
         return self.collection.delete_one({"_id":ObjectId(project_id)}).deleted_count>0
@@ -388,7 +396,6 @@ class Notification:
         self.type = type
         self.message = message
         self.status = status
-        self.status = status
         self.sentAt = sentAt
 
 class Eqpt:
@@ -476,14 +483,16 @@ class Request:
         self.date_time = date_time
         
 class Project:
-    def __init__(self, name, description, objectives, leads, team_members, sender, date_created, date_time) -> None:
+    def __init__(self, name, description, objectives, leads, team_members, createdBy, status, submissions, date_created, date_time) -> None:
         self.name = name
         self.description = description
         self.objectives = objectives
         self.team_members = team_members
         self.leads = leads
         # self.recipient_dtls = recipient_dtls
-        self.sender = sender
+        self.createdBy = createdBy
+        self.status = status
+        self.submissions = submissions
         self.date_created = date_created
         # self.deadline = deadline
         self.date_time = date_time
@@ -505,7 +514,7 @@ class AllowedExtension:
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
     
     def files(filename):
-        ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docs','docx'} 
+        ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docs','docx', "txt"} 
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 class Available:
