@@ -247,6 +247,14 @@ class Projectdb:
             return project is not None
         except:
             return False
+        
+    def get_project_name(self, project_id):
+        project = self.collection.find_one({'_id': ObjectId(project_id)})
+        return project['name']
+    
+    def get_project_members(self, project_id):
+        project = self.collection.find_one({'_id': ObjectId(project_id)})
+        return project['leads'] + project['team_members']
     
     def get_all(self):
         return self.collection.find().sort("date_time")
