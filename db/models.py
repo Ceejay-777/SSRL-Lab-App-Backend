@@ -240,7 +240,14 @@ class Projectdb:
         
     def existing_project_name(self, name):
         return self.collection.find_one({"name": name})
-       
+    
+    def project_exists(self, project_id):
+        try:
+            project = self.collection.find_one({'_id': ObjectId(project_id)})
+            return project is not None
+        except:
+            return False
+    
     def get_all(self):
         return self.collection.find().sort("date_time")
     
@@ -249,6 +256,13 @@ class Projectdb:
     
     def get_submitted_file(self, id):
         return self.collection.find_one({"submission.id":id})
+    
+    def submit_doc(self, project_id, doc):
+        return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.docs': doc}}).modified_count > 0
+    
+    def submit_link(self, project_id, link):
+        return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.links': link}}).modified_count > 0
+        
 
     def get_by_sender(self, _id, uid):
         return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1)
@@ -268,11 +282,10 @@ class Projectdb:
     def submit_project(self, project_id, dtls, no_submissions):
         return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":dtls, "no_submissions":no_submissions}}).modified_count>0
     
-    def mark_project(self,project_id, status):
-        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"status":status}}).modified_count>0
-    
-    def get_project_members(self, project_id):
-        return self.find_one({'_id': project_id}, {'team_members': 1, 'leads': 1})
+    def mark_project(self, project_id, status):
+        marked = self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"status":status}}).modified_count>0
+        print(marked)
+        return marked
     
     def delete_project(self, project_id):
         return self.collection.delete_one({"_id":ObjectId(project_id)}).deleted_count>0
