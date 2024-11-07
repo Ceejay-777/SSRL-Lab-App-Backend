@@ -1587,8 +1587,8 @@ def intern_submissions():
          return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 
-@app.post('/submissions/submit/request_form')
-def post_request_form():
+@app.post('/request/create')
+def create_request():
     
     if "user_id" in session:
         user_id = session["user_id"]
@@ -2030,7 +2030,7 @@ def delete_report(report_id):
 
 
 @app.post('/project/create') #Done for now
-def post_project_form():
+def create_project():
     
     if "user_id" in session:
         uid = session["user_uid"]
@@ -2244,9 +2244,8 @@ def delete_project(project_id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
-    
-@app.post('/project/submit_doc/<project_id>') #Check file size and confirm that file of the same metadata does not exist.
-def submit_project_doc(project_id):
+@app.patch('/project/submit_doc/<project_id>') # Check file size and confirm that file of the same metadata does not exist.
+def submit_project_doc(project_id): # Add notification
     
     if "user_id" in session:
         
@@ -2258,7 +2257,7 @@ def submit_project_doc(project_id):
         
         if submission and AllowedExtension.files(filename):
             try:
-                uploaded = upload_file_func(submission, "project_submissions/", filename)
+                uploaded = upload_file_func(submission, "SSRL_Lab_app/project_submissions/", filename)
 
                 if uploaded:
                     filepath = uploaded["secure_url"]
@@ -2268,11 +2267,11 @@ def submit_project_doc(project_id):
                     if submitted:
                         # flash('Project submitted successfully',"success")
                         # return redirect(url_for('view_project', project_id=project_id))
-                        return jsonify({"message": 'Project submitted successfully', "status" : "success"})
+                        return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
                     else:
                         # flash('An error occurred! Try again', "danger")
                         # return redirect(url_for('view_project', project_id=project_id))
-                        return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+                        return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
             except:
                 # flash("Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "danger")
                 # return redirect(url_for('view_project', project_id=project_id))
@@ -2280,7 +2279,7 @@ def submit_project_doc(project_id):
             else:
                 # flash('file upload error!', "danger")
                 # return redirect(url_for('view_project', project_id=project_id))
-                return jsonify({"message" : 'file upload error!', "status" : "danger"})
+                return jsonify({"message" : 'file upload error!', "status" : "danger"}), 500
         else:
             # flash('Invalid file format! Try again', "danger")
             # return redirect(url_for('view_project', project_id=project_id))
@@ -2288,49 +2287,77 @@ def submit_project_doc(project_id):
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+    
+@app.patch('/project/submit_link/<project_id>') # Validate link input on frontend
+def submit_project_link(project_id): # Add notification
+    if 'user_id' in session:
+        
+        if (not Project_db.project_exists(project_id)):
+            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        
+        data = request.json
+        title = data.get('title')
+        link = data.get('link')
+        
+        link_submission = {"title": title, "link": link, "date_submitted": get_date_now()}
+        submitted = Project_db.submit_link(project_id, link_submission)
+        
+        if submitted:
+            return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
+        else:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+    else:
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
 @app.get('/project/submissions/<project_id>')
 def project_submissions(project_id):
     
     if "user_id" in session:
-        user_id = session["user_id"]
-        user_profile = User_db.get_user_by_oid(user_id)
-        if "submissions" in Project_db.get_by_project_id(project_id):
-            submissions = Project_db.get_by_project_id(project_id)["submissions"]
-            topic = Project_db.get_by_project_id(project_id)["topic"]
-
-            # return render_template('pages/project_submissions.html', details=submissions, user_profile=user_profile, topic=topic)
-            return jsonify({"details":submissions, user_profile:user_profile, topic:topic, "status" : "success"})
-        else:
-            # flash('No submissions made yet', "info")
-            # return redirect(url_for('view_project', project_id=project_id))
-            return jsonify({"message" : 'No submissions made yet', "status" : "info"})
+        
+        if (not Project_db.project_exists(project_id)):
+            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+    
+        submissions = Project_db.get_project_submissions(project_id)
+        return jsonify({"submissions":submissions, "status" : "success"})
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
         
-@app.get('/project/submissions/download/<project_id>/<id>')
-def download_project_submissions(project_id, id):
-    #user_id = session["user_id"]
-    #user_profile = User_db.get_user_by_oid(user_id)
+@app.post('/project/send_announcement/<project_id>')
+def send_project_announcement(project_id):
     
     if "user_id" in session:
+        
+        if (not Project_db.project_exists(project_id)):
+            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        
+        announcement = request.json.get('announcement')
+        receivers = request.json.get('receivers') # all | leads | team_members
+        
+        all = Project_db.get_project_members(project_id)
+        leads = Project_db.get_project_leads(project_id)
+        team_members = Project_db.get_project_team_members(project_id)
+        
+        if (receivers == "all"):
+            recepient = all
+        elif (receivers == "leads"):
+            recepient = leads
+        else:
+            recepient = team_members
+        
+        not_title = f"New Project Announcement: {Project_db.get_project_name(project_id)}"
+        not_receivers = recepient
+        not_type = "Project"
+        not_message = announcement
+        not_status = "unread"
+        not_sentAt = datetime.now()
+        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        
+        Notifications.send_notification(notification)
 
-        submissions = Project_db.get_by_project_id(project_id)["submissions"]
-        app.logger.info(submissions)
-        
-        for x in submissions:
-            if x["id"]==id:
-                upload = x
-                break
-        file_url = upload["file_path"]
-        file_name = upload["file_name"]
-        app.logger.info(file_url)
-        
-        response = send_file(urllib.request.urlopen(file_url), download_name=file_name, as_attachment=True)
-        return jsonify({response:response, "status" : "success"}), 200 #Checkout for error
+        return jsonify({"message": "Announcement made successfully", "status" : "success"}), 200
 
     else:
         # flash  ('you are not logged in!', "danger")
@@ -2383,6 +2410,32 @@ def submit_feedback(project_id, id):
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+  
+@app.get('/project/submissions/download/<project_id>/<id>')
+def download_project_submissions(project_id, id):
+    #user_id = session["user_id"]
+    #user_profile = User_db.get_user_by_oid(user_id)
+    
+    if "user_id" in session:
+
+        submissions = Project_db.get_by_project_id(project_id)["submissions"]
+        app.logger.info(submissions)
+        
+        for x in submissions:
+            if x["id"]==id:
+                upload = x
+                break
+        file_url = upload["file_path"]
+        file_name = upload["file_name"]
+        app.logger.info(file_url)
+        
+        response = send_file(urllib.request.urlopen(file_url), download_name=file_name, as_attachment=True)
+        return jsonify({response:response, "status" : "success"}), 200 #Checkout for error
+
+    else:
+        # flash  ('you are not logged in!', "danger")
+        # return redirect(url_for('login')) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"})  
     
 @app.post('/todo/create') 
 def create_todo():

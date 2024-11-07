@@ -256,6 +256,18 @@ class Projectdb:
         project = self.collection.find_one({'_id': ObjectId(project_id)})
         return project['leads'] + project['team_members']
     
+    def get_project_leads(self, project_id):
+        project = self.collection.find_one({'_id': ObjectId(project_id)})
+        return project['leads']
+    
+    def get_project_team_members(self, project_id):
+        project = self.collection.find_one({'_id': ObjectId(project_id)})
+        return project['team_members']
+    
+    def get_project_submissions(self, project_id):
+        project = self.collection.find_one({'_id': ObjectId(project_id)})
+        return project['submissions']
+    
     def get_all(self):
         return self.collection.find().sort("date_time")
     
@@ -271,7 +283,6 @@ class Projectdb:
     def submit_link(self, project_id, link):
         return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.links': link}}).modified_count > 0
         
-
     def get_by_sender(self, _id, uid):
         return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1)
     
