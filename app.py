@@ -179,7 +179,6 @@ def confirm_credentials():
         }
         return jsonify(response), 400 # Back to login
     
-
 @app.post('/confirm/otp')
 def confirm_otp():
     status = session.get("confirmed", "false")
@@ -206,7 +205,6 @@ def change_password():
     
     try: 
         uid = session.get("uid", None) 
-        # print(uid)
         hashed_pwd = generate_password_hash(new_pwd)
         dtls = updatePwd(hashed_pwd)
         updated = User_db.update_user_profile(uid, dtls)
@@ -257,48 +255,52 @@ def home():
         #             continue  
         #     else:
         #         continue
+        
+        reports = list(Report_db.get_by_recipient_limited(position=user_role))
+        requests = list(Request_db.get_by_recipient_limited(position=user_role, user_id=user_id))
             
         if user_role=="Admin":
-            reports = list(Report_db.get_by_recipient_limited(position=user_role))
-            requests = list(Request_db.get_by_recipient_limited(position=user_role, user_id=user_id))
-            projects = list(Project_db.get_by_sender_limited(user_id, uid))
+            projects = list(Project_db.get_all_limited())
+        elif user_role == "Lead":
+            projects = list(Project_db.get_by_stack_limited(stack))
+        else: projects = list(Project_db.get_by_isMember_limited())
             
             # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
         
-            response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
-                
-            return jsonify(response), 200
+        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
             
-        elif user_role == "Intern":
-            reports =list(Report_db.get_by_sender(user_id, uid))
-            requests = list(Request_db.get_by_sender(user_id, uid))
-            attendance = list(Attendance_db.get_attendance(user_id))
+        return jsonify(response), 200
+            
+        # elif user_role == "Intern":
+        #     reports =list(Report_db.get_by_sender(user_id, uid))
+        #     requests = list(Request_db.get_by_sender(user_id, uid))
+        #     attendance = list(Attendance_db.get_attendance(user_id))
     
-            projects = []
+        #     projects = []
             
-            project_all = list(Project_db.get_by_recipient_dtls(category="all", recipient=stack, name="All stack members"))
-            for project in project_all:
-                projects.append(project)
+        #     project_all = list(Project_db.get_by_recipient_dtls(category="all", recipient=stack, name="All stack members"))
+        #     for project in project_all:
+        #         projects.append(project)
                 
-            project_one = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
-            for project in project_one:
-                projects.append(project)
+        #     project_one = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
+        #     for project in project_one:
+        #         projects.append(project)
                 
-            projects.sort(reverse=True, key=sortFunc)
+        #     projects.sort(reverse=True, key=sortFunc)
                 
-            response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}
-            return jsonify(convert_to_json_serializable(response)), 200
+        #     response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}
+        #     return jsonify(convert_to_json_serializable(response)), 200
         
-        elif user_role == "Lead":
-            reports =list(Report_db.get_by_sender(user_id, uid))
-            requests = list(Request_db.get_by_sender(user_id, uid))
-            projects = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
-            attendance = list(Attendance_db.get_attendance(user_id))
+        # elif user_role == "Lead":
+        #     reports =list(Report_db.get_by_sender(user_id, uid))
+        #     requests = list(Request_db.get_by_sender(user_id, uid))
+        #     projects = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
+        #     attendance = list(Attendance_db.get_attendance(user_id))
             
-            response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
-            return jsonify(convert_to_json_serializable(response)), 200
-        else:
-            return jsonify({"message": "Permission not granted", "status" : "info"}), 401
+        #     response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
+        #     return jsonify(convert_to_json_serializable(response)), 200
+        # else:
+        #     return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
@@ -474,6 +476,10 @@ def admin_edit_profile(edit_id):
 
             if edit_profile["firstname"]==firstname:
                 uid = edit_profile["uid"]
+                
+                if (avatar):filename = avatar['filename']
+                else: filename = None
+                
                 dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role, filename, email, bio, bday, phone_num)
 
                 updated = User_db.update_user_profile_by_oid(oid, dtls)
@@ -1594,135 +1600,105 @@ def create_request():
         user_id = session["user_id"]
         uid = session["user_uid"]
         
-        title = request.form.get("title")
-        type = request.form.get("type")
-        eqpt_id = request.form.get("eqpt_id")
-        
-        if type =="Equipment":
-            eqpt = {
-                "id": eqpt_id,
-                "name": Eqpt_db.get_eqpt_by_id(eqpt_id)["name"] 
-            }
-        else:
-            eqpt = "None"
+        title = request.json.get("title")
+        type = request.json.get("type")
+        request_dtls = request.json.get("request_dtls")
             
-        quantity = request.form.get("quantity")
-        date_from = request.form.get("date_from")
-        date_to = request.form.get("date_to")
-        purpose = request.form.get("purpose")
-        recipient = request.form.get("recipient")
-        sender = {
-            "_id": user_id,
-            "uid": uid  
-                  
-        }
-        status = "Pending"
-        now = datetime.now().strftime
-        month = now("%B")
-        date = now("%d")
-        year = now("%Y")
-        date_submitted = "{0} {1}, {2}".format(month, date, year)
+        # if type =="Equipment":
+        #     eqpt = {
+        #         "id": eqpt_id,
+        #         "name": Eqpt_db.get_eqpt_by_id(eqpt_id)["name"] 
+        #     }
+        # else:
+        #     eqpt = "None"
+        
+        receipient = request.json.get("receipient")
+        sender = uid
+        sender_name = User_db.get_user_fullname(uid)
+        # status =  Approved, Declined or pending
+        date_submitted = get_date_now()
         date_time = datetime.now()
         
-        if recipient == "Admin":
-            role = "Admin"
-            id = User_db.get_user_by_role_one(role)["_id"]
-            
-            recipient_dtls = {
-                "position": "Admin",
-                "id": id
-            }
-            requested = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
-            request_id = Request_db.insert_new(requested)
-            
-            # flash("Request submitted successfully!", "success")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : "Request submitted successfully!", "status" : "success"})  
+        rec_not_title = "You received a new Request"
+        rec_not_receivers = receipient
+        rec_not_type = "Request"
+        rec_not_message = f"You just received a new request from {sender_name}. Check it out in your requests tab!"
+        rec_not_status = "unread"
+        rec_not_sentAt = datetime.now()
+        notification = Notification(rec_not_title, rec_not_receivers, rec_not_type, rec_not_message, rec_not_status, rec_not_sentAt)
         
-        elif recipient == "software":
-            stack = "Software"
-            id = User_db.get_lead(stack)["_id"]
-             
-            recipient_dtls = {
-                "position": "Software",
-                "id": id
-            }
-            requested = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
-            request_id = Request_db.insert_new(requested)
+        requested = Request(title, type, sender, receipient, date_submitted, date_time, request_dtls)
+        request_id = Request_db.insert_new(requested)
             
-            # flash("Request submitted successfully!", "success")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : "Request submitted successfully!", "status" : "success"})              
-        
-        elif recipient == "hardware":
-            stack="Hardware" 
-            id = User_db.get_lead(stack)["_id"]
-            recipient_dtls = {
-                "position": "Hardware",
-                "id": id
-            }
-        
-            requested = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
-            request_id = Request_db.insert_new(requested)
-            
-            # flash("Request submitted successfully!", "success")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : "Request submitted successfully!", "status" : "success"})  
-        
+        if request_id: 
+            Notifications.send_notification(notification)
+            return jsonify({"message" : "Request submitted successfully!", "status" : "success"}), 200
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('login'))  
-            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
+            return jsonify({"message" : "Request unable to be submitted. Please try again!", "status" : "error"}), 500
+        
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
-@app.get('/view/request/<request_id>')
+@app.get('/request/view/<request_id>')
 def view_request(request_id):
     
     if "user_id" in session:
-        id = session["user_id"]
         
-        user_profile = User_db.get_user_by_oid(id)
         request = Request_db.get_by_request_id(request_id)
-        eqpts = Eqpt_db.get_all_available_eqpt()
+        # eqpts = Eqpt_db.get_all_available_eqpt()
     
         # return render_template('pages/view_request.html', request=request, user_profile=user_profile, eqpts=eqpts)
-        return jsonify({request:request, user_profile:user_profile, eqpts:eqpts, "status" : "success"})
+        response = convert_to_json_serializable({"request":request, "status" : "success"})
+        return jsonify(response), 200
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
 @app.get('/request/approve/<request_id>')
 def approve_request(request_id):
     
     if "user_id" in session:
+        uid = session["user_uid"]
         approved = Request_db.approve_request(request_id)
+        title = Request_db.get_by_request_id(request_id)['title']
+        
+        not_title = "Request Approved"
+        not_receivers = [uid]
+        not_type = "Request"
+        not_message = f"Your request '{title}' has been approved. Check it out in your requests tab!"
+        not_status = "unread"
+        not_sentAt = datetime.now()
+        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
 
         if approved: 
-            # flash('Request approved',"success")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'Request approved', "status" : "success"})                                                   
+            Notifications.send_notification(notification)
+            return jsonify({"message" : 'Request approved', "status" : "success"}), 200                                                  
         else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
 @app.get('/request/decline/<request_id>')
 def decline_request(request_id):
     
     if "user_id" in session:
+        uid = session["user_uid"]
         declined = Request_db.decline_request(request_id)
+        title = Request_db.get_by_request_id(request_id)['title']
+        
+        not_title = "Request Declined"
+        not_receivers = [uid]
+        not_type = "Request"
+        not_message = f"Your request '{title}' has been declined. Check it out in your requests tab!"
+        not_status = "unread"
+        not_sentAt = datetime.now()
+        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
 
         if declined: 
             # flash('Request declined',"success")
             # return redirect(url_for('view_request', request_id=request_id))
+            Notifications.send_notification(notification)
             return jsonify({"message" : 'Request declined', "status" : "success"})                                                   
         else:
             # flash('An error occurred! Try again', "danger")
@@ -1733,7 +1709,7 @@ def decline_request(request_id):
         # return redirect(url_for('login')) 
          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
-@app.post('/request/edit/<request_id>')
+@app.post('/request/edit/<request_id>') # Remove
 def edit_request(request_id):
     
     if "user_id" in session:
@@ -1837,7 +1813,7 @@ def edit_request(request_id):
         # return redirect(url_for('login')) 
          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
-@app.get('/delete/request/<request_id>')
+@app.get('/request/delete/<request_id>') # Who can delete a request?
 def delete_request(request_id):
     
     if "user_id" in session:
@@ -1845,20 +1821,12 @@ def delete_request(request_id):
         deleted = Request_db.delete_request(request_id)
         
         if deleted:
-            # flash ("Request deleted successfully!", "success")
-            # return redirect(url_for('all_submissions'))
-            return jsonify({"message" : 'Request deleted successfully!', "status" : "success"})     
+            return jsonify({"message" : 'Request deleted successfully!', "status" : "success"}), 200     
         else:
-            # flash ('The request was unsuccessful!', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"})  
+            return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"}), 500  
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
   
-        
-
 @app.post('/submissions/submit/report')
 def post_report_form():
     
@@ -2041,15 +2009,12 @@ def create_project():
         objectives = data.get("objectives") #List
         leads = data.get("leads") #List
         team_members = data.get("team_members") #List
+        stack = data.get("stack")
         # deadline = data.get("deadline")
         createdBy = uid
         submissions = {"docs": [], "links": []} 
            
-        now = datetime.now().strftime
-        month = now("%B")
-        date = now("%d")
-        year = now("%Y")
-        date_created = "{0} {1}, {2}".format(month, date, year)
+        date_created = get_date_now()
         # deadline_str = request.form.get("deadline")
         # deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
         date_time = datetime.now()
@@ -2068,7 +2033,7 @@ def create_project():
         #         "name": User_db.get_user_by_oid(recipient)["uid"]
         #     }
         
-        project = Project(name, description, objectives, leads, team_members, createdBy, project_status, submissions, date_created, date_time) #Removed recipient_dtls, deadline
+        project = Project(name, description, objectives, leads, team_members, stack, createdBy, project_status, submissions, date_created, date_time) #Removed recipient_dtls, deadline
         project_id = Project_db.insert_new(project)
         
         not_title = "New Project"
@@ -2178,11 +2143,9 @@ def mark_project_incomplete(project_id):
             # return redirect(url_for('view_request', request_id=request_id))
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
-@app.patch('/project/edit/<project_id>')
+@app.patch('/project/edit/<project_id>') # Add notifications
 def edit_project(project_id): # Who can edit a project? Name, description, objectives, team_members, leads, deadline
     
     if "user_id" in session:

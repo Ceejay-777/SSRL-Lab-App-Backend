@@ -31,6 +31,10 @@ class Userdb:
     def get_user_by_role(self, role):
         return self.collection.find({"role": role})
     
+    def get_user_fullname(self, uid):
+        user = self.collection.find_one({"uid" : uid})
+        return user["fullname"]
+    
     def get_user_by_role_one(self, role):
         return self.collection.find_one({"role": role})
     
@@ -232,6 +236,24 @@ class Reportdb:
 class Projectdb:
     def __init__(self) -> None:
         self.collection = Projects
+        
+    def get_all(self):
+        return self.collection.find().sort("date_time")
+    
+    def get_all_limited(self):
+        return self.collection.find().sort("date_time").limit(4)
+    
+    def get_by_isMember_limited(self, uid):
+        return self.collection.find({'$or': [
+               {'leads': uid},
+               {'team_members': uid}
+           ]}).limit(4)
+    
+    def get_by_isMember(self, uid):
+        return self.collection.find({'$or': [
+               {'leads': uid},
+               {'team_members': uid}
+           ]})
     
     def insert_new(self, request):
         existing_project = self.collection.find_one({"name": request.name})
@@ -268,13 +290,10 @@ class Projectdb:
         project = self.collection.find_one({'_id': ObjectId(project_id)})
         return project['submissions']
     
-    def get_all(self):
-        return self.collection.find().sort("date_time")
-    
     def get_by_project_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
     
-    def get_submitted_file(self, id):
+    def get_submitted_file(self, id): # Remove
         return self.collection.find_one({"submission.id":id})
     
     def submit_doc(self, project_id, doc):
@@ -288,6 +307,12 @@ class Projectdb:
     
     def get_by_sender_limited(self, _id, uid):
         return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1).limit(4)
+    
+    def get_by_stack_limited(self, stack):
+        return self.collection.find({"stack" : stack}).sort("date_time", -1).limit(4)
+    
+    def get_by_stack(self, stack):
+        return self.collection.find({"stack" : stack}).sort("date_time", -1)
     
     def get_by_recipient_dtls(self, category, recipient, name):
         return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1)
@@ -500,28 +525,24 @@ class AdminUpdateUser:
         self.phone_num = phone_num
         
 class Request:
-    def __init__(self, title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time) -> None:
+    def __init__(self, title, type, sender, receipient, date_submitted, date_time, request_dtls, status="Pending") -> None:
         self.title = title
         self.type = type
-        self.eqpt = eqpt
-        self.quantity = quantity
-        self.date_from = date_from
-        self.date_to = date_to
-        self.purpose = purpose
         self.sender = sender
-        self.recipient = recipient_dtls
+        self.receipient = receipient
         self.status = status
         self.date_submitted = date_submitted
         self.date_time = date_time
+        self.request_dtls = request_dtls
         
 class Project:
-    def __init__(self, name, description, objectives, leads, team_members, createdBy, status, submissions, date_created, date_time) -> None:
+    def __init__(self, name, description, objectives, leads, team_members, stack, createdBy, status, submissions, date_created, date_time) -> None:
         self.name = name
         self.description = description
         self.objectives = objectives
         self.team_members = team_members
         self.leads = leads
-        # self.recipient_dtls = recipient_dtls
+        self.stack = stack
         self.createdBy = createdBy
         self.status = status
         self.submissions = submissions
