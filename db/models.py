@@ -53,8 +53,8 @@ class Userdb:
     def update_user_profile_by_oid(self, _id, dtls):
         return self.collection.update_one({"_id": ObjectId(_id)},{"$set":dtls.__dict__}).modified_count>0
     
-    def delete_user(self, _id):
-        return self.collection.delete_one({"_id":ObjectId(_id)}).deleted_count>0
+    def delete_user(self, id):
+        return self.collection.delete_one({"uid":id}).deleted_count>0
     
     def get_all_users(self):
         return self.collection.find().sort("uid")
@@ -78,6 +78,12 @@ class Notificationsdb:
     def send_notification(self, dtls):
         print("Notification Created")
         return self.collection.insert_one(dtls.__dict__).inserted_id
+    
+    def get_by_isMember(self, uid):
+        return self.collection.find({'receivers' : uid})
+    
+    def get_by_isMember_limited(self, uid):
+        return self.collection.find({'receivers' : uid}).limit(5)
     
     # Get all notifications for a particular user
     
@@ -167,17 +173,29 @@ class Requestdb:
     def get_by_request_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
 
-    def get_by_sender(self, _id, uid):
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1)
+    def get_by_isMember(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receipient': uid}
+           ]}).sort("date_time", -1)
+        
+    def get_by_isMember_limited(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receipient': uid}
+           ]}).sort("date_time", -1).limit(4)
     
-    def get_by_sender_limited(self, _id, uid):
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1).limit(3)
+    def get_by_sender(self, uid): # Remove
+        return self.collection.find({"sender":uid}).sort("date_time", -1)
     
-    def get_by_recipient(self, position, _id):
-        return self.collection.find({"recipient":{"position":position, "id":ObjectId(_id)}}).sort("date_time", -1)
+    def get_by_sender_limited(self, uid): # Remove
+        return self.collection.find({"sender":uid}).sort("date_time", -1).limit(3)
     
-    def get_by_recipient_limited(self, position, user_id):
-        return self.collection.find({"recipient":{"position":position, "id":ObjectId(user_id)}}).sort("date_time", -1).limit(3)
+    def get_by_reciepient(self, uid): # Remove
+        return self.collection.find({"receipient":uid}).sort("date_time", -1)
+    
+    def get_by_receipient_limited(self, uid): # Remove
+        return self.collection.find({"receipient":uid}).sort("date_time", -1).limit(3)
     
     def update_request_dtls(self,request_id, dtls):
         return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":dtls.__dict__}).modified_count>0
@@ -302,10 +320,10 @@ class Projectdb:
     def submit_link(self, project_id, link):
         return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.links': link}}).modified_count > 0
         
-    def get_by_sender(self, _id, uid):
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1)
+    def get_by_sender(self, uid): # Remove
+        return self.collection.find({"sender": "uid"}).sort("date_time", -1)
     
-    def get_by_sender_limited(self, _id, uid):
+    def get_by_sender_limited(self, _id, uid): # Remove
         return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1).limit(4)
     
     def get_by_stack_limited(self, stack):

@@ -230,7 +230,7 @@ def change_password():
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home')
-def home():
+def home(): 
     if "user_id" in session:
         user_id = session.get("user_id")
         uid = session.get("user_uid")
@@ -257,7 +257,8 @@ def home():
         #         continue
         
         reports = list(Report_db.get_by_recipient_limited(position=user_role))
-        requests = list(Request_db.get_by_recipient_limited(position=user_role, user_id=user_id))
+        requests = list(Request_db.get_by_isMember(uid))
+        notifications = list(Notifications.get_by_isMember_limited(uid))
             
         if user_role=="Admin":
             projects = list(Project_db.get_all_limited())
@@ -265,42 +266,9 @@ def home():
             projects = list(Project_db.get_by_stack_limited(stack))
         else: projects = list(Project_db.get_by_isMember_limited())
             
-            # return render_template("pages/home.html", user_profile=user_profile, date=date, members=members, reports=reports, requests=requests, projects=projects, interns=interns, todos=todos)
-        
-        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
+        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
             
         return jsonify(response), 200
-            
-        # elif user_role == "Intern":
-        #     reports =list(Report_db.get_by_sender(user_id, uid))
-        #     requests = list(Request_db.get_by_sender(user_id, uid))
-        #     attendance = list(Attendance_db.get_attendance(user_id))
-    
-        #     projects = []
-            
-        #     project_all = list(Project_db.get_by_recipient_dtls(category="all", recipient=stack, name="All stack members"))
-        #     for project in project_all:
-        #         projects.append(project)
-                
-        #     project_one = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
-        #     for project in project_one:
-        #         projects.append(project)
-                
-        #     projects.sort(reverse=True, key=sortFunc)
-                
-        #     response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "status" : "success"}
-        #     return jsonify(convert_to_json_serializable(response)), 200
-        
-        # elif user_role == "Lead":
-        #     reports =list(Report_db.get_by_sender(user_id, uid))
-        #     requests = list(Request_db.get_by_sender(user_id, uid))
-        #     projects = list(Project_db.get_by_recipient_dtls(category="one", recipient=user_id, name=uid))
-        #     attendance = list(Attendance_db.get_attendance(user_id))
-            
-        #     response = {"reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "attendance" : attendance, "status" : "success"}
-        #     return jsonify(convert_to_json_serializable(response)), 200
-        # else:
-        #     return jsonify({"message": "Permission not granted", "status" : "info"}), 401
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
@@ -316,7 +284,6 @@ def view_members():
         softinterns = [intern for intern in interns if intern['stack'] == "Software"]
         hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
         
-        app.logger.info(leads)
         response = {
         "admins" : admins,
         "softlead": softlead,
@@ -336,15 +303,15 @@ def show_user_profile(requested_id):
         stack = session["stack"]
         requested_profile = User_db.get_user_by_uid(requested_id)
         
-        if user_role == "Admin" or (user_role== "Lead" and stack==requested_profile["stack"]):
-            response = {"requested_profile" : requested_profile, "status" : "success" }
-            return jsonify(convert_to_json_serializable(response)), 200
-        else:
-            return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin", "status" : "info"}), 401
+        # if user_role == "Admin" or (user_role== "Lead" and stack==requested_profile["stack"]):
+        response = {"requested_profile" : requested_profile, "status" : "success" }
+        return jsonify(convert_to_json_serializable(response)), 200
+        # else:
+        #     return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin", "status" : "info"}), 401
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
     
-@app.post('/Admin/create/user')
+@app.post('/admin/create/user')
 def create_user():
     if "user_id" in session:
         user_role = session["user_role"]
@@ -393,14 +360,14 @@ def create_user():
 @app.get('/view/profile/me')
 def view_profile_me():
     if "user_id" in session:
-        current_user_id = session["user_id"]
-        user_profile = User_db.get_user_by_oid(current_user_id)
+        user_id = session["user_id"]
+        user_profile = User_db.get_user_by_oid(user_id)
         response = {"user_profile" : user_profile, "status" : "success"}
         return jsonify(convert_to_json_serializable(response)), 200 
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.post('/user/edit/profile') #Send defaultvalues with request body
+@app.patch('/user/edit/profile') #Send defaultvalues with request body
 def user_edit_profile(): 
     if "user_id" in session:
         user_id = session["user_id"]
@@ -445,7 +412,7 @@ def user_edit_profile():
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.post('/admin/edit/profile/<edit_id>')
+@app.patch('/admin/edit/profile/<edit_id>')
 def admin_edit_profile(edit_id):
     if "user_id" in session:
         user_role = session["user_role"]
@@ -604,38 +571,86 @@ def admin_edit_profile(edit_id):
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.get('/Add/lead/<intern_uid>')
+@app.patch('/add/lead/<intern_uid>') 
 def admin_add_lead(intern_uid):
+    if "user_id" in session:
+        stack = User_db.get_user_by_uid(intern_uid)["stack"]
+        user_role = session["user_role"]
+        
+        if user_role == "Admin" or user_role == "Lead":
+            dtls = {
+                "role": "Lead"
+            }
+            updated = User_db.update_user_role(intern_uid, dtls)
+            if updated:
+                return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
+            else:
+                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
+        else:
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
+    else:
+        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
+    
+@app.patch('/remove/lead/<intern_uid>') 
+def admin_remove_lead(intern_uid):
+    
+    if "user_id" in session:
+        stack = User_db.get_user_by_uid(intern_uid)["stack"]
+        user_role = session["user_role"]
+        
+        if user_role == "Admin" or user_role == "Lead":
+            dtls = {
+                "role": "Intern"
+            }
+            updated = User_db.update_user_role(intern_uid, dtls)
+            if updated:
+                return jsonify({"message": f"You've successfully removed {intern_uid} as {stack} lead", "status" : "success"}), 200
+            else:
+                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
+        else:
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
+    else:
+        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
+    
+@app.patch('/add/admin/<intern_uid>') # Multiple leads
+def admin_add_admin(intern_uid):
     if "user_id" in session:
         user_role = session["user_role"]
         
         if user_role == "Admin":
-            stack = User_db.get_user_by_uid(intern_uid)["stack"]
-            uid = User_db.get_lead(stack)["uid"]
-            
             dtls = {
-                "role": "Intern"
+                "role": "Admin"
             }
-            updated = User_db.update_user_role(uid, dtls)
-            
+            updated = User_db.update_user_role(intern_uid, dtls)
             if updated:
-                dtls = {
-                    "role": "Lead"
-                }
-                updated = User_db.update_user_role(intern_uid, dtls)
-            
-                if updated:
-                    return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
-                else:
-                    return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 403
+                return jsonify({"message": f"You've successfully made {intern_uid} an Admin", "status" : "success"}), 200
             else:
-                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 403
+                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
         else:
             return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
     else:
-        return jsonify({"message": "You are not logged in", "status" : "danger"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
+    
+@app.patch('/remove/admin/<intern_uid>')
+def admin_remove_admin(intern_uid):
+    if "user_id" in session:
+        user_role = session["user_role"]
+        
+        if user_role == "Admin":
+            dtls = {
+                "role": "Intern"
+            }
+            updated = User_db.update_user_role(intern_uid, dtls)
+            if updated:
+                return jsonify({"message": f"You've successfully removed {intern_uid} from an Admin", "status" : "success"}), 200
+            else:
+                return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
+        else:
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
+    else:
+        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
 
-@app.route('/admin/delete_user/<requested_id>')
+@app.delete('/admin/delete_user/<requested_id>')
 def admin_delete_user(requested_id):
     if "user_id" in session:
         user_role = session["user_role"]
@@ -645,14 +660,12 @@ def admin_delete_user(requested_id):
             
             if deleted:
                 return jsonify({"message": f"User {requested_id} deleted successfully!", "status" : "success"}), 200
-
             else:
                 return jsonify({"message": f"The request to delete {requested_id} was not successful!", "status" : "danger"}), 400
-
         else:
             return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
     else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 401 
     
 @app.get('/view/equipments')
 def view_all_eqpt():
@@ -2327,7 +2340,7 @@ def send_project_announcement(project_id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
-@app.get('/project/send/feedback/<project_id>/<id>')
+@app.get('/project/send/feedback/<project_id>/<id>') # Remove
 def send_feedback(project_id, id):
     
     if "user_id" in session:
@@ -2348,7 +2361,7 @@ def send_feedback(project_id, id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
-@app.post('/submit/feedback/<project_id>/<id>') 
+@app.post('/submit/feedback/<project_id>/<id>') # Remove
 def submit_feedback(project_id, id):
     
     if "user_id" in session:
