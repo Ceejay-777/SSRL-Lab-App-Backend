@@ -1,7 +1,8 @@
 from flask import Flask, session, render_template, redirect, url_for, request, flash, send_file, jsonify
+from flask_session import Session
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from flask_mail import Mail, Message
-# from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from db.models import *
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -32,13 +33,12 @@ PROJECT_FOLDER = 'submissions/projects'
 
 
 app = Flask(__name__)
-# CORS(app)
+CORS(app)
 
 bcrypt = Bcrypt(app)
 
-app.secret_key = "ssrl"
+# app.secret_key = "ssrl"
 # app.secret_key = os.urandom(32)
-
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROJECT_FOLDER'] = PROJECT_FOLDER
@@ -48,6 +48,8 @@ app.config['MAIL_USERNAME'] = 'covenantcrackslord03@gmail.com'
 app.config['MAIL_PASSWORD'] = email_pswd
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
+
+Session(app)
 
 cloudinary.config( 
   cloud_name = cloud_name, 
@@ -81,12 +83,17 @@ def get_date_now():
     year = now("%Y")
     return "{0} {1}, {2}".format(month, date, year)
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+
 @app.get('/test')
 def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
 
 @app.post('/login')
+@cross_origin(supports_credentials=True)
 def authenticate_user():
     user_uid = request.json.get("user_id")
     pwd = request.json.get("pwd")
@@ -114,6 +121,7 @@ def authenticate_user():
         return {"message": "Invalid login ID", "status" : "danger"}, 401
 
 @app.get('/logout')
+@cross_origin(supports_credentials=True)
 def logout():
     if "user_id" in session:
         session.pop("user_id", None)
@@ -122,15 +130,17 @@ def logout():
         return jsonify({"message": "You are not logged in!", "status": "danger"}), 400
 
 @app.get('/forgot/password')
+@cross_origin(supports_credentials=True)
 def forgot_password():
     session["confirmed"]="false" # To forgot password page
     return jsonify({"status" : "success"})
     
 @app.post('/confirm/credentials')
+@cross_origin(supports_credentials=True)
 def confirm_credentials():
-    status = session.get("confirmed", "false")
+    status = session.get("confirmed")
     
-    if status == "false":
+    if not status:
         uid = request.json.get("uid")
         email = request.json.get("email")
         user = User_db.get_user_by_uid(uid)
@@ -146,6 +156,7 @@ def confirm_credentials():
                     
                     session["uid"]=uid
                     session["otp"]=otp
+                    print(session["otp"])
                     
                     response = {
                         "message": "Check your email for the OTP",
@@ -180,13 +191,16 @@ def confirm_credentials():
         return jsonify(response), 400 # Back to login
     
 @app.post('/confirm/otp')
+@cross_origin(supports_credentials=True)
 def confirm_otp():
-    status = session.get("confirmed", "false")
-    print(session.get('otp'))
+    print(session.permanent)
+    status = session.get("confirmed")
     
-    if status == "false": 
+    if not status: 
+        print(str(session))
         input_otp = request.json.get("otp")
-        otp = session["otp"]
+        otp = session.get("otp")
+        print(otp)
         if input_otp == otp:
             session.pop("otp", None)
             session["confirmed"] = "true"
@@ -194,9 +208,10 @@ def confirm_otp():
         else:
             return jsonify({"message": "Invalid OTP!", "status" : "danger"}), 401
     elif status == "true":
-        return jsonify({"message": "Already confirmed." , "status" : "info"}), 200 # Back to login
+        return jsonify({"message": "Already confirmed." , "status" : "info"}), 401 # Back to login
 
 @app.post('/change/password')
+@cross_origin(supports_credentials=True)
 def change_password():
     new_pwd = request.json.get("new_pwd")
     
@@ -230,8 +245,12 @@ def change_password():
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home')
-def home(): 
+@cross_origin(supports_credentials=True)
+def home():
+    print("Okay 1")
+    print(session.sid)
     if "user_id" in session:
+        print("Okay 2")
         user_id = session.get("user_id")
         uid = session.get("user_uid")
         user_role = convert_to_json_serializable(session.get("user_role")) 
@@ -270,6 +289,7 @@ def home():
             
         return jsonify(response), 200
     else:
+        print("Okay 3")
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
 @app.get('/view/members') #Personnel tab 
