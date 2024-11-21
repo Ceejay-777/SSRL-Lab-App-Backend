@@ -4,7 +4,7 @@ from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from flask_mail import Mail, Message
 from flask_cors import CORS, cross_origin
 from db.models import *
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from io import BytesIO
 import os 
@@ -33,11 +33,11 @@ PROJECT_FOLDER = 'submissions/projects'
 
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}}, withCredentials = True)
 
 bcrypt = Bcrypt(app)
 
-# app.secret_key = "ssrl"
+app.secret_key = "ssrl"
 # app.secret_key = os.urandom(32)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -48,17 +48,22 @@ app.config['MAIL_USERNAME'] = 'covenantcrackslord03@gmail.com'
 app.config['MAIL_PASSWORD'] = email_pswd
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
-Session(app)
-
-cloudinary.config( 
-  cloud_name = cloud_name, 
-  api_key = cloud_key, 
-  api_secret = cloud_secret,
-  secure = True
+app.config.update(
+    SESSION_TYPE='filesystem',
+    SESSION_PERMANENT=True,
+    SESSION_COOKIE_SECURE=False,  # True for HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
 )
 
+Session(app)
 mail = Mail(app)
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 def convert_to_json_serializable(doc):
     if isinstance(doc, list):
@@ -262,18 +267,6 @@ def home():
         todos = list(Todos_db.get_todos_by_user_id_limited(user_id))
         all_todos = list(Todos_db.get_todos_by_user_id(user_id))
         
-        # now = datetime.now().strftime
-        
-        # taskCompleted = 0
-        
-        # for td in all_todos:
-        #     if td["completed"]==True:
-        #         if (td["date_time"]).strftime("%U")==datetime.now().strftime("%U"):
-        #                 taskCompleted = int(taskCompleted) + 1
-        #         else:
-        #             continue  
-        #     else:
-        #         continue
         
         reports = list(Report_db.get_by_recipient_limited(position=user_role))
         requests = list(Request_db.get_by_isMember(uid))
