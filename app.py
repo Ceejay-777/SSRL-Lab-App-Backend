@@ -31,11 +31,9 @@ Attendance_db_v2  = Attendancedb_v2()
 UPLOAD_FOLDER = 'static/images'
 PROJECT_FOLDER = 'submissions/projects'
 
-
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}}, withCredentials = True)
-
 bcrypt = Bcrypt(app)
+CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}}, withCredentials = True)
 
 app.secret_key = "ssrl"
 # app.secret_key = os.urandom(32)
@@ -48,15 +46,12 @@ app.config['MAIL_USERNAME'] = 'covenantcrackslord03@gmail.com'
 app.config['MAIL_PASSWORD'] = email_pswd
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
-
-app.config.update(
-    SESSION_TYPE='filesystem',
-    SESSION_PERMANENT=True,
-    SESSION_COOKIE_SECURE=False,  # True for HTTPS
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax'
-)
 
 Session(app)
 mail = Mail(app)
@@ -64,7 +59,11 @@ mail = Mail(app)
 @app.before_request
 def make_session_permanent():
     session.permanent = True
-
+    
+@app.get('/session')
+def get_session_sid():
+    return jsonify({'sid': session.sid})
+    
 def convert_to_json_serializable(doc):
     if isinstance(doc, list):
         return [convert_to_json_serializable(d) for d in doc]
@@ -103,7 +102,10 @@ def authenticate_user():
     user_uid = request.json.get("user_id")
     pwd = request.json.get("pwd")
     user_profile = User_db.get_user_by_uid(user_uid)
-    
+    session_sid = request.headers.get("session_sid")
+    print(session_sid)
+    # current_session = session_store.get(session_sid)
+    # print(current_session)
     if user_profile:
         authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
         if authenticated is True:
@@ -119,6 +121,7 @@ def authenticate_user():
                 "status" : "success",
                 "user_profile": user_profile
             }
+            # redirect('/home')
             return response, 200
         else:
             return {"message": "Invalid password","status" : "danger"}, 401
@@ -253,7 +256,7 @@ def change_password():
 @cross_origin(supports_credentials=True)
 def home():
     print("Okay 1")
-    print(session.sid)
+    # print(session.sid)
     if "user_id" in session:
         print("Okay 2")
         user_id = session.get("user_id")
