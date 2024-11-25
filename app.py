@@ -27,6 +27,7 @@ Project_db = Projectdb()
 Todos_db = Todosdb()
 Attendance_db  = Attendancedb()
 Attendance_db_v2  = Attendancedb_v2()
+Sessions_db = Sessionsdb()
 
 UPLOAD_FOLDER = 'static/images'
 PROJECT_FOLDER = 'submissions/projects'
@@ -55,14 +56,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 Session(app)
 mail = Mail(app)
-
-@app.before_request
-def make_session_permanent():
-    session.permanent = True
-    
-@app.get('/session')
-def get_session_sid():
-    return jsonify({'sid': session.sid})
     
 def convert_to_json_serializable(doc):
     if isinstance(doc, list):
@@ -83,15 +76,44 @@ def upload_file_func(file, folder, filename):
 def get_date_now():
     now = datetime.now().strftime
     month = now("%B")
+
     date = now("%d")
     year = now("%Y")
     return "{0} {1}, {2}".format(month, date, year)
 
 @app.before_request
-def make_session_permanent():
-    session.permanent = True
+def clean_up_sessions():
+    session_id = request.headers.get('Session_ID')
+    print(request, session_id)
+    Sessions_db.cleanup(session_id)
 
-@app.get('/test')
+@app.get('/session/new')
+def get_new_session_id():
+    session = Session()
+    session_id = Sessions_db.create_session(session)
+    
+    if not session_id:
+        return jsonify({"message": "Something went wrong, pls try logging in again", "status": "error"}), 500
+    
+    response = convert_to_json_serializable({'session_id': session_id, "status": "success"})
+    return jsonify(response), 200
+
+@app.get('/session/update')
+def update_session():
+    session_id = request.headers.get("Session_ID")
+    if (not session_id):
+        return jsonify({"status": "error", "message": "Invaid session id. Try logging in again."}), 401
+    
+    print(session_id)
+    user_data = {"user_id": "444446"}
+    session = Sessions_db.update_session(session_id, user_data)
+    print(session)
+    
+    if not session:
+        return jsonify({"status": "error", "message": "Something went wrong. Try logging in again."}), 500
+    
+    return jsonify({"status": "success"})
+
 def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
@@ -102,18 +124,29 @@ def authenticate_user():
     user_uid = request.json.get("user_id")
     pwd = request.json.get("pwd")
     user_profile = User_db.get_user_by_uid(user_uid)
-    session_sid = request.headers.get("session_sid")
-    print(session_sid)
-    # current_session = session_store.get(session_sid)
-    # print(current_session)
+    session_id = request.headers.get("Session_ID")
+    
+    session = Sessions_db.get_session(session_id)
+    
+    if not session:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    
+    user_data = session["user_data"]
+    
     if user_profile:
         authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
         if authenticated is True:
-            session["user_uid"] = user_uid
-            app.logger.info(session["user_uid"])
-            session["user_id"] = str(user_profile["_id"])
-            session["user_role"] = user_profile["role"]
-            session["stack"] = user_profile["stack"]
+            user_data["user_uid"] = user_uid
+            user_data["user_id"] = str(user_profile["_id"])
+            user_data["user_role"] = user_profile["role"]
+            user_data["stack"] = user_profile["stack"]
+            print(user_data)
+            
+            session_updated = Sessions_db.update_session(session_id, user_data)
+            print(session_updated)
+            if not session_updated:
+                return jsonify({"status": "error", "message": "Something went wrong. Try logging in again."}), 500
+            
             user_profile = convert_to_json_serializable(user_profile)
             
             response = {
@@ -121,7 +154,6 @@ def authenticate_user():
                 "status" : "success",
                 "user_profile": user_profile
             }
-            # redirect('/home')
             return response, 200
         else:
             return {"message": "Invalid password","status" : "danger"}, 401
@@ -255,21 +287,29 @@ def change_password():
 @app.get('/home')
 @cross_origin(supports_credentials=True)
 def home():
-    print("Okay 1")
-    # print(session.sid)
-    if "user_id" in session:
+    session_id = request.headers.get("Session_ID")
+    if not session_id:
+        return jsonify({"message": "Something went wrong. Please try logging in again", "status": "error"}), 401
+    
+    session = Sessions_db.get_session(session_id)
+    
+    if not session:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    
+    user_data = session["user_data"]
+    
+    if "user_id" in user_data:
         print("Okay 2")
-        user_id = session.get("user_id")
-        uid = session.get("user_uid")
-        user_role = convert_to_json_serializable(session.get("user_role")) 
-        stack = session.get("stack")
+        user_id = user_data.get("user_id")
+        uid = user_data.get("user_uid")
+        user_role = convert_to_json_serializable(user_data.get("user_role")) 
+        stack = user_data.get("stack")
         # print(user_id, uid, user_role, stack)
         user_profile = User_db.get_user_by_oid(user_id)
         firstname = user_profile["firstname"]
         avatar = user_profile["avatar"]
         todos = list(Todos_db.get_todos_by_user_id_limited(user_id))
         all_todos = list(Todos_db.get_todos_by_user_id(user_id))
-        
         
         reports = list(Report_db.get_by_recipient_limited(position=user_role))
         requests = list(Request_db.get_by_isMember(uid))
@@ -285,7 +325,6 @@ def home():
             
         return jsonify(response), 200
     else:
-        print("Okay 3")
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
 
 @app.get('/view/members') #Personnel tab 

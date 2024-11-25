@@ -3,6 +3,7 @@ from bson.objectid import ObjectId
 from properties import *
 import os
 import string, random
+from datetime import datetime, timedelta
 
 
 uri_web = db_uri
@@ -20,6 +21,7 @@ Projects = db["Projects"]
 Inventory = db["Inventory"]
 Attendance = db["Attendance"]
 Attendance_v2 = db["Attendance_v2"]
+Sessions = db["Session"]
 
 class Userdb:
     def __init__(self) -> None:
@@ -396,6 +398,41 @@ class Attendancedb_v2:
     def get_marked_in_users(self, date):
         return self.collection.find({"date": date, "status": "in"}).sort("date_time", -1)
     
+class Sessionsdb:
+    def __init__(self) -> None:
+        self.collection = Sessions
+        
+    def create_session(self, session):
+        return self.collection.insert_one(session.__dict__).inserted_id
+    
+    def get_session(self, session_id):
+        return self.collection.find_one({"_id": ObjectId(session_id)})
+    
+    def expires_sessions(self):
+        eight_hours_ago = datetime.now() - timedelta(hours=9)
+        self.collection.update_many({"last_accessed": {"$lt": eight_hours_ago}}, {"$set": {"expired": "true"}})
+    
+    def cleanup(self, session_id):
+        nine_hours_ago = datetime.now() - timedelta(hours=9)
+        self.collection.delete_many({"last_accessed": {"$lt": nine_hours_ago}})
+        
+    # def update_session(self, session_id, user_data):
+    #     return self.collection.update_one({"_id": ObjectId(session_id)}, {"$set": {"user_data": user_data}}).modified_count>0
+    
+    def update_session(self, session_id, user_data):
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(session_id)},
+                {"$set": {"user_data": user_data}}
+            )
+            return result.matched_count > 0  
+        except Exception as e:
+            print(f"Error updating session: {e}")
+            return False
+    
+    def delete_session(self, session_id):
+        self.collection.delete_one({"session_id": session_id})    
+    
     
 class generate:   
     def password():
@@ -578,6 +615,13 @@ class Report:
         self.date_submitted = date_submitted
         self.status = status
         self.date_time = date_time
+        
+class Session:
+    def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="true"):
+        self.user_data = user_data
+        self.created_at = created_at
+        self.last_accessed = last_accessed
+        self.expired = expired
         
 class AllowedExtension:    
     def images(filename):
