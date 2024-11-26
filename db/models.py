@@ -408,11 +408,11 @@ class Sessionsdb:
     def get_session(self, session_id):
         return self.collection.find_one({"_id": ObjectId(session_id)})
     
-    def expires_sessions(self):
+    def expire_sessions(self):
         eight_hours_ago = datetime.now() - timedelta(hours=9)
         self.collection.update_many({"last_accessed": {"$lt": eight_hours_ago}}, {"$set": {"expired": "true"}})
     
-    def cleanup(self, session_id):
+    def cleanup(self): # Possible add an expired condition
         nine_hours_ago = datetime.now() - timedelta(hours=9)
         self.collection.delete_many({"last_accessed": {"$lt": nine_hours_ago}})
         
@@ -617,7 +617,7 @@ class Report:
         self.date_time = date_time
         
 class Session:
-    def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="true"):
+    def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="false"):
         self.user_data = user_data
         self.created_at = created_at
         self.last_accessed = last_accessed

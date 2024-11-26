@@ -83,19 +83,35 @@ def get_date_now():
 
 @app.before_request
 def clean_up_sessions():
-    session_id = request.headers.get('Session_ID')
-    print(request, session_id)
-    Sessions_db.cleanup(session_id)
+    Sessions_db.expire_sessions()
+    Sessions_db.cleanup()
 
-@app.get('/session/new')
-def get_new_session_id():
+@app.get('/session/new/<old_session_id>')
+def get_new_session_id(old_session_id):
     session = Session()
-    session_id = Sessions_db.create_session(session)
+    new_session_id = Sessions_db.create_session(session)
     
-    if not session_id:
+    if not new_session_id:
         return jsonify({"message": "Something went wrong, pls try logging in again", "status": "error"}), 500
     
-    response = convert_to_json_serializable({'session_id': session_id, "status": "success"})
+    new_session_db = Sessions_db.get_session(new_session_id)
+    new_session = {"session_id": new_session_id, "expired": new_session_db["expired"]}
+    
+    if old_session_id == 'new':
+        response = convert_to_json_serializable({"new_session": new_session, "old_session": {}, "status": "success"})
+        return jsonify(response), 200
+    
+    old_session_db = Sessions_db.get_session(old_session_id)
+    
+    if not old_session_db:
+        old_session = {}
+        response = convert_to_json_serializable({"new_session": new_session, "old_session": {}, "status": "success"})
+        return jsonify(response), 200
+    
+    old_session = {"session_id": old_session_id, "expired": old_session_db["expired"]}
+    
+    response = convert_to_json_serializable({"new_session": new_session, "old_session": old_session, "status": "success"})
+        
     return jsonify(response), 200
 
 @app.get('/session/update')
