@@ -81,11 +81,19 @@ def get_date_now():
     year = now("%Y")
     return "{0} {1}, {2}".format(month, date, year)
 
+def check_session(session_id):
+    session = Sessions_db.get_session(session_id)
+    
+    if not session:
+        return False
+    
+    return session["user_data"]
+
 @app.before_request
 def clean_up_sessions():
     Sessions_db.expire_sessions()
     Sessions_db.cleanup()
-
+    
 @app.get('/session/new/<old_session_id>')
 def get_new_session_id(old_session_id):
     session = Session()
@@ -141,13 +149,10 @@ def authenticate_user():
     pwd = request.json.get("pwd")
     user_profile = User_db.get_user_by_uid(user_uid)
     session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
     
-    session = Sessions_db.get_session(session_id)
-    
-    if not session:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
-    
-    user_data = session["user_data"]
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
     
     if user_profile:
         authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
@@ -157,11 +162,10 @@ def authenticate_user():
             user_data["user_role"] = user_profile["role"]
             user_data["stack"] = user_profile["stack"]
             print(user_data)
-            
+
             session_updated = Sessions_db.update_session(session_id, user_data)
-            print(session_updated)
             if not session_updated:
-                return jsonify({"status": "error", "message": "Something went wrong. Try logging in again."}), 500
+                return jsonify({"status": "error", "message": "Something went wrong. Try logging in again 2."}), 500
             
             user_profile = convert_to_json_serializable(user_profile)
             
@@ -307,12 +311,11 @@ def home():
     if not session_id:
         return jsonify({"message": "Something went wrong. Please try logging in again", "status": "error"}), 401
     
-    session = Sessions_db.get_session(session_id)
+    user_data = check_session(session_id)
+    print(user_data)
     
-    if not session:
+    if not user_data:
         return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
-    
-    user_data = session["user_data"]
     
     if "user_id" in user_data:
         print("Okay 2")
@@ -345,7 +348,13 @@ def home():
 
 @app.get('/view/members') #Personnel tab 
 def view_members():
-    if "user_id" in session:
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    
+    if "user_id" in user_data:
         admins = list(User_db.get_user_by_role(role = "Admin"))
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
