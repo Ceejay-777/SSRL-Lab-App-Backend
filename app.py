@@ -1,5 +1,4 @@
 from flask import Flask, session, render_template, redirect, url_for, request, flash, send_file, jsonify
-from flask_session import Session
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from flask_mail import Mail, Message
 from flask_cors import CORS, cross_origin
@@ -36,9 +35,6 @@ app = Flask(__name__)
 bcrypt = Bcrypt(app)
 CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}}, withCredentials = True)
 
-app.secret_key = "ssrl"
-# app.secret_key = os.urandom(32)
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROJECT_FOLDER'] = PROJECT_FOLDER
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -47,14 +43,7 @@ app.config['MAIL_USERNAME'] = 'covenantcrackslord03@gmail.com'
 app.config['MAIL_PASSWORD'] = email_pswd
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_PERMANENT'] = True
-app.config['SESSION_COOKIE_SECURE'] = False
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
-Session(app)
 mail = Mail(app)
     
 def convert_to_json_serializable(doc):
