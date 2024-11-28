@@ -83,7 +83,7 @@ def clean_up_sessions():
     Sessions_db.expire_sessions()
     Sessions_db.cleanup()
     
-@app.get('/session/new/<old_session_id>')
+@app.get('/session/new/<old_session_id>') # Work on creating new session only if old session has expired
 def get_new_session_id(old_session_id):
     session = Session()
     new_session_id = Sessions_db.create_session(session)
@@ -172,8 +172,14 @@ def authenticate_user():
 @app.get('/logout')
 @cross_origin(supports_credentials=True)
 def logout():
-    if "user_id" in session:
-        session.pop("user_id", None)
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        updated_session = Sessions_db.update_session(user_data={})
         return jsonify({"message": "Logged out successfully", "status": "success"}), 200 # Return to login
     else:
         return jsonify({"message": "You are not logged in!", "status": "danger"}), 400
@@ -307,7 +313,6 @@ def home():
         return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
     
     if "user_id" in user_data:
-        print("Okay 2")
         user_id = user_data.get("user_id")
         uid = user_data.get("user_uid")
         user_role = convert_to_json_serializable(user_data.get("user_role")) 
@@ -329,7 +334,7 @@ def home():
             projects = list(Project_db.get_by_stack_limited(stack))
         else: projects = list(Project_db.get_by_isMember_limited())
             
-        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
+        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
             
         return jsonify(response), 200
     else:
@@ -355,8 +360,8 @@ def view_members():
         
         response = {
         "admins" : admins,
-        "softlead": softlead,
-        "hardlead": hardlead,
+        "softleads": softlead,
+        "hardleads": hardlead,
         "softinterns": softinterns,
         "hardinterns": hardinterns,
         "status" : "success"
@@ -382,8 +387,14 @@ def show_user_profile(requested_id):
     
 @app.post('/admin/create/user')
 def create_user():
-    if "user_id" in session:
-        user_role = session["user_role"]
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    
+    if "user_id" in user_data:
+        user_role = user_data["user_role"]
         
         if user_role == "Admin" or user_role == "Lead":
             firstname = request.json.get("firstname")
@@ -408,7 +419,6 @@ def create_user():
             year =  now("%Y")
             datetime_created = "{0}, {1}".format(month, year)
             usr = User(firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar, task_id, bio, location, bday, datetime_created)
-            app.logger.info(usr)
             
             try:
                 msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
@@ -418,8 +428,11 @@ def create_user():
             
                 user_id = User_db.create_user(usr)
                 
-                return jsonify({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"}), 201 # Show the created user's profile -> Fetch /show/profile/<requested_id>
-            except:
+                response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
+                
+                return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
+            except Exception as e:
+                print(e)
                 return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
         else:
             return jsonify({"message": "Permission not granted", "status" : "info"}), 403

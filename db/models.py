@@ -409,10 +409,10 @@ class Sessionsdb:
         return self.collection.find_one({"_id": ObjectId(session_id)})
     
     def expire_sessions(self):
-        eight_hours_ago = datetime.now() - timedelta(hours=9)
+        eight_hours_ago = datetime.now() - timedelta(hours=8)
         self.collection.update_many({"last_accessed": {"$lt": eight_hours_ago}}, {"$set": {"expired": "true"}})
     
-    def cleanup(self): # Possible add an expired condition
+    def cleanup(self): # Possibly add an expired condition
         nine_hours_ago = datetime.now() - timedelta(hours=9)
         self.collection.delete_many({"last_accessed": {"$lt": nine_hours_ago}})
         
