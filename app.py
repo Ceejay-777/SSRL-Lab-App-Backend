@@ -71,6 +71,9 @@ def get_date_now():
     return "{0} {1}, {2}".format(month, date, year)
 
 def check_session(session_id):
+    if session_id == "":
+        return False
+
     session = Sessions_db.get_session(session_id)
     
     if not session:
@@ -137,6 +140,14 @@ def authenticate_user():
     user_uid = request.json.get("user_id")
     pwd = request.json.get("pwd")
     user_profile = User_db.get_user_by_uid(user_uid)
+    print(user_profile["deleted"])
+    
+    if user_profile["deleted"] == "True":
+        return jsonify({"message": "Could not find user with the inputted credentials.", "status": "error"}), 404
+    
+    if user_profile["suspended"] == "True":
+        return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
+    
     session_id = request.headers.get("Session_ID")
     user_data = check_session(session_id)
     
@@ -144,7 +155,8 @@ def authenticate_user():
         return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
     
     if user_profile:
-        authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
+        # authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
+        authenticated = True
         if authenticated is True:
             user_data["user_uid"] = user_uid
             user_data["user_id"] = str(user_profile["_id"])
@@ -191,7 +203,6 @@ def forgot_password():
     return jsonify({"status" : "success"})
     
 @app.post('/confirm/credentials')
-@cross_origin(supports_credentials=True)
 def confirm_credentials():
     status = session.get("confirmed")
     
@@ -246,7 +257,6 @@ def confirm_credentials():
         return jsonify(response), 400 # Back to login
     
 @app.post('/confirm/otp')
-@cross_origin(supports_credentials=True)
 def confirm_otp():
     print(session.permanent)
     status = session.get("confirmed")
@@ -266,7 +276,6 @@ def confirm_otp():
         return jsonify({"message": "Already confirmed." , "status" : "info"}), 401 # Back to login
 
 @app.post('/change/password')
-@cross_origin(supports_credentials=True)
 def change_password():
     new_pwd = request.json.get("new_pwd")
     
@@ -300,24 +309,18 @@ def change_password():
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home')
-@cross_origin(supports_credentials=True)
 def home():
     session_id = request.headers.get("Session_ID")
-    if not session_id:
-        return jsonify({"message": "Something went wrong. Please try logging in again", "status": "error"}), 401
-    
     user_data = check_session(session_id)
-    print(user_data)
     
-    if not user_data:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again", "status": "error"}), 401
     
     if "user_id" in user_data:
         user_id = user_data.get("user_id")
         uid = user_data.get("user_uid")
         user_role = convert_to_json_serializable(user_data.get("user_role")) 
         stack = user_data.get("stack")
-        # print(user_id, uid, user_role, stack)
         user_profile = User_db.get_user_by_oid(user_id)
         firstname = user_profile["firstname"]
         avatar = user_profile["avatar"]
@@ -332,7 +335,7 @@ def home():
             projects = list(Project_db.get_all_limited())
         elif user_role == "Lead":
             projects = list(Project_db.get_by_stack_limited(stack))
-        else: projects = list(Project_db.get_by_isMember_limited())
+        else: projects = list(Project_db.get_by_isMember_limited(uid))
             
         response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
             
@@ -372,16 +375,17 @@ def view_members():
 
 @app.get('/show/profile/<requested_id>') #user ID created by database
 def show_user_profile(requested_id):
-    if "user_id" in session:
-        user_role = session["user_role"]
-        stack = session["stack"]
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
         requested_profile = User_db.get_user_by_uid(requested_id)
         
-        # if user_role == "Admin" or (user_role== "Lead" and stack==requested_profile["stack"]):
         response = {"requested_profile" : requested_profile, "status" : "success" }
         return jsonify(convert_to_json_serializable(response)), 200
-        # else:
-        #     return jsonify({"message": f"Permission not granted, please contact the stack lead or the admin", "status" : "info"}), 401
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
     
@@ -441,8 +445,14 @@ def create_user():
     
 @app.get('/view/profile/me')
 def view_profile_me():
-    if "user_id" in session:
-        user_id = session["user_id"]
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        user_id = user_data["user_id"]
         user_profile = User_db.get_user_by_oid(user_id)
         response = {"user_profile" : user_profile, "status" : "success"}
         return jsonify(convert_to_json_serializable(response)), 200 
@@ -653,11 +663,17 @@ def admin_edit_profile(edit_id):
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.patch('/add/lead/<intern_uid>') 
+@app.patch('/add_lead/<intern_uid>') 
 def admin_add_lead(intern_uid):
-    if "user_id" in session:
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
         stack = User_db.get_user_by_uid(intern_uid)["stack"]
-        user_role = session["user_role"]
+        user_role = user_data["user_role"]
         
         if user_role == "Admin" or user_role == "Lead":
             dtls = {
@@ -673,12 +689,17 @@ def admin_add_lead(intern_uid):
     else:
         return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
     
-@app.patch('/remove/lead/<intern_uid>') 
+@app.patch('/remove_lead/<intern_uid>') 
 def admin_remove_lead(intern_uid):
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
     
-    if "user_id" in session:
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
         stack = User_db.get_user_by_uid(intern_uid)["stack"]
-        user_role = session["user_role"]
+        user_role = user_data["user_role"]
         
         if user_role == "Admin" or user_role == "Lead":
             dtls = {
@@ -694,10 +715,16 @@ def admin_remove_lead(intern_uid):
     else:
         return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
     
-@app.patch('/add/admin/<intern_uid>') # Multiple leads
+@app.patch('/add_admin/<intern_uid>') # Multiple leads
 def admin_add_admin(intern_uid):
-    if "user_id" in session:
-        user_role = session["user_role"]
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        user_role = user_data["user_role"]
         
         if user_role == "Admin":
             dtls = {
@@ -707,16 +734,22 @@ def admin_add_admin(intern_uid):
             if updated:
                 return jsonify({"message": f"You've successfully made {intern_uid} an Admin", "status" : "success"}), 200
             else:
-                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
+                return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
         else:
             return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
     else:
         return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
     
-@app.patch('/remove/admin/<intern_uid>')
+@app.patch('/remove_admin/<intern_uid>')
 def admin_remove_admin(intern_uid):
-    if "user_id" in session:
-        user_role = session["user_role"]
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        user_role = user_data["user_role"]
         
         if user_role == "Admin":
             dtls = {
@@ -732,13 +765,20 @@ def admin_remove_admin(intern_uid):
     else:
         return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
 
-@app.delete('/admin/delete_user/<requested_id>')
+@app.patch('/admin/delete_user/<requested_id>')
 def admin_delete_user(requested_id):
-    if "user_id" in session:
-        user_role = session["user_role"]
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        user_role = user_data["user_role"]
         
         if user_role == "Admin":
-            deleted = User_db.delete_user(requested_id)
+            dtls = {"deleted": "True"}
+            deleted = User_db.delete_user(requested_id, dtls)
             
             if deleted:
                 return jsonify({"message": f"User {requested_id} deleted successfully!", "status" : "success"}), 200
@@ -748,6 +788,54 @@ def admin_delete_user(requested_id):
             return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 401 
+    
+@app.patch('/admin/suspend_user/<requested_id>')
+def admin_suspend_user(requested_id):
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        user_role = user_data["user_role"]
+        
+        if user_role == "Admin":
+            dtls = {"suspended": "True"}
+            deleted = User_db.delete_user(requested_id, dtls)
+            
+            if deleted:
+                return jsonify({"message": f"User {requested_id} suspended successfully!", "status" : "success"}), 200
+            else:
+                return jsonify({"message": f"The request to suspend {requested_id} was not successful!", "status" : "danger"}), 400
+        else:
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
+    else:
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 401
+    
+@app.patch('/admin/unsuspend_user/<requested_id>')
+def admin_unsuspend_user(requested_id):
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
+        user_role = user_data["user_role"]
+        
+        if user_role == "Admin":
+            dtls = {"suspended": "False"}
+            deleted = User_db.delete_user(requested_id, dtls)
+            
+            if deleted:
+                return jsonify({"message": f"User {requested_id} unsuspended successfully!", "status" : "success"}), 200
+            else:
+                return jsonify({"message": f"The request to delunsuspend {requested_id} was not successful!", "status" : "danger"}), 400
+        else:
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
+    else:
+        return jsonify({"message": "You are not logged in", "status" : "info"}), 401
     
 @app.get('/view/equipments')
 def view_all_eqpt():

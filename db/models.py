@@ -31,7 +31,7 @@ class Userdb:
         return self.collection.insert_one(usr.__dict__).inserted_id
         
     def get_user_by_role(self, role):
-        return self.collection.find({"role": role})
+        return self.collection.find({"role": role, "deleted": "False"})
     
     def get_user_fullname(self, uid):
         user = self.collection.find_one({"uid" : uid})
@@ -55,8 +55,8 @@ class Userdb:
     def update_user_profile_by_oid(self, _id, dtls):
         return self.collection.update_one({"_id": ObjectId(_id)},{"$set":dtls.__dict__}).modified_count>0
     
-    def delete_user(self, id):
-        return self.collection.delete_one({"uid":id}).deleted_count>0
+    def delete_user(self, id, dtls):
+        return self.collection.update_one({"uid":id}, {"$set": dtls}).modified_count>0
     
     def get_all_users(self):
         return self.collection.find().sort("uid")
@@ -482,7 +482,7 @@ class generate:
         return otp
     
 class User:
-    def __init__(self, firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar, task_id, bio, location, bday, datetime_created) -> None:
+    def __init__(self, firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar, task_id, bio, location, bday, datetime_created, suspended="False", deleted="False") -> None:
         self.firstname = firstname
         self.surname = surname
         self.fullname = fullname
@@ -500,6 +500,8 @@ class User:
         self.bio = bio
         self.location = location
         self.bday = bday
+        self.suspended = suspended
+        self.deleted = deleted
         
 class Notification:
     def __init__(self, title, receivers, type, message, status, sentAt) -> None:
