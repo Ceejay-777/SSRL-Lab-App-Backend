@@ -258,22 +258,22 @@ class Projectdb:
         self.collection = Projects
         
     def get_all(self):
-        return self.collection.find().sort("date_time")
+        return self.collection.find({"deleted":"False"}).sort("date_time")
     
     def get_all_limited(self):
-        return self.collection.find().sort("date_time").limit(4)
+        return self.collection.find({"deleted":"False"}).sort("date_time").limit(4)
     
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
                {'leads': uid},
                {'team_members': uid}
-           ]}).limit(4)
+           ], "deleted":"False"}).limit(4)
     
     def get_by_isMember(self, uid):
         return self.collection.find({'$or': [
                {'leads': uid},
                {'team_members': uid}
-           ]})
+           ], "deleted":"False"})
     
     def insert_new(self, request):
         existing_project = self.collection.find_one({"name": request.name})
@@ -343,7 +343,7 @@ class Projectdb:
     def update_project_dtls(self, project_id, dtls):
         return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":dtls}).modified_count>0
     
-    def submit_project(self, project_id, dtls, no_submissions):
+    def submit_project(self, project_id, dtls, no_submissions): #Remove
         return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":dtls, "no_submissions":no_submissions}}).modified_count>0
     
     def mark_project(self, project_id, status):
@@ -351,8 +351,8 @@ class Projectdb:
         print(marked)
         return marked
     
-    def delete_project(self, project_id):
-        return self.collection.delete_one({"_id":ObjectId(project_id)}).deleted_count>0
+    def delete_project(self, project_id, name):
+        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"deleted":"True", "name" : f"{name} deleted"}}).modified_count>0
     
 
 class Inventorydb:
@@ -593,19 +593,20 @@ class Request:
         self.request_dtls = request_dtls
         
 class Project:
-    def __init__(self, name, description, objectives, leads, team_members, stack, createdBy, status, submissions, date_created, date_time) -> None:
+    def __init__(self, name, description, objectives, leads, team_members, team_avatars, stack, createdBy, status, submissions, date_created, deadline, deleted="False") -> None:
         self.name = name
         self.description = description
         self.objectives = objectives
         self.team_members = team_members
         self.leads = leads
+        self.team_avatars = team_avatars
         self.stack = stack
         self.createdBy = createdBy
         self.status = status
         self.submissions = submissions
         self.date_created = date_created
-        # self.deadline = deadline
-        self.date_time = date_time
+        self.deadline = deadline
+        self.deleted = deleted
         
 class Report: 
     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:

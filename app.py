@@ -1980,20 +1980,12 @@ def edit_request(request_id):
             dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
             updated = Request_db.update_request_dtls(request_id,dtls)
             if updated:
-                # flash("Request edited successfully!", "success")
-                # return redirect(url_for('view_request', request_id=request_id))
                 return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
             else:
-                # flash('An error occurred! Try again', "danger")
-                # return redirect(url_for('view_request', request_id=request_id))
                 return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
         else:
-            # flash('permission not granted', "danger")
-            # return redirect(url_for('login'))  
             return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.get('/request/delete/<request_id>') # Who can delete a request?
@@ -2182,9 +2174,14 @@ def delete_report(report_id):
 
 @app.post('/project/create') #Done for now
 def create_project():
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
     
-    if "user_id" in session:
-        uid = session["user_uid"]
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
+    
+    if "user_id" in user_data:
+        uid = user_data["user_uid"]
         
         data = request.json
         name = data.get("name")
@@ -2192,31 +2189,25 @@ def create_project():
         objectives = data.get("objectives") #List
         leads = data.get("leads") #List
         team_members = data.get("team_members") #List
+        team_avatars = []
+        
+        for lead in leads:
+            profile_avatar = User_db.get_user_by_uid(lead)['avatar']
+            team_avatars.append(profile_avatar)
+            
+        for team_member in team_members:
+            profile_avatar = User_db.get_user_by_uid(team_member)['avatar']
+            team_avatars.append(profile_avatar)
+            
         stack = data.get("stack")
-        # deadline = data.get("deadline")
+        deadline = data.get("deadline")
         createdBy = uid
         submissions = {"docs": [], "links": []} 
            
         date_created = get_date_now()
-        # deadline_str = request.form.get("deadline")
-        # deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
-        date_time = datetime.now()
         project_status = "Uncompleted"
         
-        # if recipient=="Software" or recipient=="Hardware":
-        #     recipient_dtls = {
-        #         "category":"all",
-        #         "recipient": recipient,
-        #         "name": "All stack members"
-        #     }
-        # else:
-        #     recipient_dtls = {
-        #         "category":"one",
-        #         "recipient": str(recipient),
-        #         "name": User_db.get_user_by_oid(recipient)["uid"]
-        #     }
-        
-        project = Project(name, description, objectives, leads, team_members, stack, createdBy, project_status, submissions, date_created, date_time) #Removed recipient_dtls, deadline
+        project = Project(name, description, objectives, leads, team_members, team_avatars, stack, createdBy, project_status, submissions, date_created, deadline) #Removed recipient_dtls
         project_id = Project_db.insert_new(project)
         
         not_title = "New Project"
@@ -2251,11 +2242,41 @@ def view_project(project_id):
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+  
+@app.get('/project/get_all')
+def get_all_projects():
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
     
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" not in user_data:
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+    
+    user_role = convert_to_json_serializable(user_data.get("user_role")) 
+    stack = user_data.get("stack")
+    uid = user_data.get("user_uid")
+    
+    if user_role=="Admin":
+        projects = list(Project_db.get_all())
+    elif user_role == "Lead":
+        projects = list(Project_db.get_by_stack(stack))
+    else: projects = list(Project_db.get_by_isMember(uid))
+    
+    response = convert_to_json_serializable({"projects": projects, "status": "success"})
+    return jsonify(response), 200
+  
 @app.patch('/project/completed/<project_id>')
 def mark_project_completed(project_id):
+    session_id = request.headers.get("Session_ID")
+    print(session_id)
+    user_data = check_session(session_id)
     
-    if "user_id" in session:
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
         project = Project_db.get_by_project_id(project_id)
         
         if (not Project_db.project_exists(project_id)):
@@ -2278,23 +2299,22 @@ def mark_project_completed(project_id):
         notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
         
         if marked: 
-            # flash('Project marked completed',"success")
-            # return redirect(url_for('project_submissions', project_id=project_id))
             Notifications.send_notification(notification)
             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
         else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
 @app.patch('/project/incomplete/<project_id>') 
 def mark_project_incomplete(project_id):
-    if "user_id" in session:
-        
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
         project = Project_db.get_by_project_id(project_id)
         
         if (not Project_db.project_exists(project_id)):
@@ -2317,13 +2337,9 @@ def mark_project_incomplete(project_id):
         notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
         
         if marked: 
-            # flash('Project marked completed',"success")
-            # return redirect(url_for('project_submissions', project_id=project_id))
             Notifications.send_notification(notification)
             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
@@ -2344,29 +2360,27 @@ def edit_project(project_id): # Who can edit a project? Name, description, objec
         
         updated = Project_db.update_project_dtls(project_id, data)
         if updated:
-            # flash("Project details edited successfully!", "success")
-            # return redirect(url_for('view_project', project_id=project_id))
             return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
         else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
 @app.delete('/project/delete/<project_id>')
 def delete_project(project_id):
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
     
-    if "user_id" in session:
-        
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+    
+    if "user_id" in user_data:
         if (not Project_db.project_exists(project_id)):
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
         name = Project_db.get_project_name(project_id)
         members = Project_db.get_project_members(project_id)
-        deleted = Project_db.delete_project(project_id)
+        deleted = Project_db.delete_project(project_id, name)
             
         not_title = "Project Deleted"
         not_receivers = members
@@ -2377,22 +2391,15 @@ def delete_project(project_id):
         notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
             
         if deleted:
-            # flash ("Project deleted successfully!", "success")
-            # return redirect(url_for('intern_submissions'))
             Notifications.send_notification(notification)
             return jsonify({"message": "Project deleted successfully!", "status" : "success"}), 200
         else:
-            # flash ('The request was unsuccessful!', "danger")
-            # return redirect(url_for('view_project', project_id=project_id))
             return jsonify({"message": 'The project could not be deleted!', "status" : "danger"}), 500
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
 @app.patch('/project/submit_doc/<project_id>') # Check file size and confirm that file of the same metadata does not exist.
 def submit_project_doc(project_id): # Add notification
-    
     if "user_id" in session:
         
         if (not Project_db.project_exists(project_id)):
@@ -2403,7 +2410,7 @@ def submit_project_doc(project_id): # Add notification
         
         if submission and AllowedExtension.files(filename):
             try:
-                uploaded = upload_file_func(submission, "SSRL_Lab_app/project_submissions/", filename)
+                uploaded = upload_file_func(submission, "SSRL_Lab_App/project_submissions/", filename)
 
                 if uploaded:
                     filepath = uploaded["secure_url"]
