@@ -327,7 +327,7 @@ def home():
         todos = list(Todos_db.get_todos_by_user_id_limited(user_id))
         all_todos = list(Todos_db.get_todos_by_user_id(user_id))
         
-        reports = list(Report_db.get_by_recipient_limited(position=user_role))
+        reports = list(Report_db.get_by_recipient_limited(user_role))
         requests = list(Request_db.get_by_isMember(uid))
         notifications = list(Notifications.get_by_isMember_limited(uid))
             
@@ -337,7 +337,7 @@ def home():
             projects = list(Project_db.get_by_stack_limited(stack))
         else: projects = list(Project_db.get_by_isMember_limited(uid))
             
-        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
+        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "stack": stack, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
             
         return jsonify(response), 200
     else:
@@ -367,6 +367,52 @@ def view_members():
         "hardleads": hardlead,
         "softinterns": softinterns,
         "hardinterns": hardinterns,
+        "status" : "success"
+        } 
+        return jsonify(convert_to_json_serializable(response)), 200
+    else:
+        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+    
+@app.get('/get_soft_members') #Personnel tab 
+def get_soft_members():
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    
+    if "user_id" in user_data:
+        leads = list(User_db.get_user_by_role(role = "Lead"))
+        interns = list(User_db.get_user_by_role(role="Intern"))
+        
+        softlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Software"]
+        softinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Software"]
+        
+        response = {
+        "members": softlead + softinterns,
+        "status" : "success"
+        } 
+        return jsonify(convert_to_json_serializable(response)), 200
+    else:
+        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+    
+@app.get('/get_hard_members') #Personnel tab 
+def get_hard_members():
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
+    
+    if "user_id" in user_data:
+        leads = list(User_db.get_user_by_role(role = "Lead"))
+        interns = list(User_db.get_user_by_role(role="Intern"))
+        
+        hardlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Hardware"]
+        hardinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Hardware"]
+        
+        response = {
+        "members": hardlead + hardinterns,
         "status" : "success"
         } 
         return jsonify(convert_to_json_serializable(response)), 200
