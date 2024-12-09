@@ -2234,7 +2234,7 @@ def create_project():
         description = data.get("description")
         objectives = data.get("objectives") #List
         leads = data.get("leads") #List
-        team_members = data.get("team_members") #List
+        team_members = data.get("team_members") 
         team_avatars = []
         
         for lead in leads:
