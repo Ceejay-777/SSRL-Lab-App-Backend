@@ -2232,9 +2232,10 @@ def create_project():
         data = request.json
         name = data.get("name")
         description = data.get("description")
-        objectives = data.get("objectives") #List
-        leads = data.get("leads") #List
+        objectives = data.get("objectives") 
+        leads = data.get("leads")
         team_members = data.get("team_members") 
+        
         team_avatars = []
         
         for lead in leads:
