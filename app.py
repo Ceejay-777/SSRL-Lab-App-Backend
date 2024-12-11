@@ -2218,7 +2218,7 @@ def delete_report(report_id):
          return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
 
-@app.post('/project/create') #Done for now
+@app.post('/project/create') 
 def create_project():
     session_id = request.headers.get("Session_ID")
     user_data = check_session(session_id)
