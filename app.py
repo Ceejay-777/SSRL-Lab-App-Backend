@@ -2213,9 +2213,7 @@ def delete_report(report_id):
                 # return redirect(url_for('view_report', report_id=report_id))
                 return jsonify({"message" : "Report marked incomplete'", "status" : "danger"})
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
 
 @app.post('/project/create') 
