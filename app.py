@@ -1271,24 +1271,14 @@ def update_email():
                 updated = User_db.update_user_profile_by_oid(id, dtls)
                 
                 if updated:
-                    # flash("Email address updated successfully!", "success")
-                    # return redirect(url_for('view_profile_me'))
                     return jsonify({"message" : "Email address updated successfully!", "status" : "success"})                    
                 else:
-                    # flash("Unable to update your email address! Try again", "danger")
-                    # return redirect(url_for('view_profile_me')) 
                     return jsonify({"message" :"Unable to update your email address! Try again", "status" : "danger"})                    
             else:
-                # flash("Unmatching email address! Unable to update email address", "danger")
-                # return redirect(url_for('view_profile_me'))
                 return jsonify({"message" :"Unmatching email address! Unable to update email address", "status" : "danger"})                    
         else:
-            # flash("Invalid password", "danger")
-            # return redirect(url_for('view_profile_me'))
             return jsonify({"message" : "Invalid password", "status" : "danger"})                    
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
          return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 @app.post('/update/password')
