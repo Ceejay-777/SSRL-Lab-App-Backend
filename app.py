@@ -312,6 +312,7 @@ def change_password():
 def home():
     session_id = request.headers.get("Session_ID")
     user_data = check_session(session_id)
+    print(user_data)
     
     if user_data == False:
         return jsonify({"message": "Something went wrong. Please try logging in again", "status": "error"}), 401
