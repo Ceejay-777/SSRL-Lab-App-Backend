@@ -1,27 +1,9 @@
-from pymongo import MongoClient
 from bson.objectid import ObjectId 
 from properties import *
 import os
 import string, random
 from datetime import datetime, timedelta
-
-
-uri_web = db_uri
-uri_local = "mongodb://localhost:27017"
-client = MongoClient("mongodb+srv://smartsystemlaboratory:vu52ZVyLHpAkRrGk@cluster0.lk2pi.mongodb.net/")
-db = client['LAB_APP_DB']
-Users = db['Users']
-Notifications = db['Notifications']
-Todos = db['Todos']
-Eqpts = db['Equipments']
-lost_eqpts = db["Lost_eqpt"]
-Requests = db["Requests"]
-Reports = db["Reports"]
-Projects = db["Projects"]
-Inventory = db["Inventory"]
-Attendance = db["Attendance"]
-Attendance_v2 = db["Attendance_v2"]
-Sessions = db["Session"]
+from db import *
 
 class Userdb:
     def __init__(self) -> None:
@@ -354,7 +336,6 @@ class Projectdb:
     def delete_project(self, project_id, name):
         return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"deleted":"True", "name" : f"{name} deleted"}}).modified_count>0
     
-
 class Inventorydb:
     def __init__(self) -> None:
         self.collection = Inventory
@@ -625,6 +606,8 @@ class Session:
         self.created_at = created_at
         self.last_accessed = last_accessed
         self.expired = expired
+        
+class         
         
 class AllowedExtension:    
     def images(filename):

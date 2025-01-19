@@ -1075,9 +1075,6 @@ def update_eqpt_dtls(eqpt_id):
         # flash  ('you are not logged in!', "danger")
         # return redirect(url_for('login')) 
          return jsonify({"message" : 'You are not logged in!', "status" : "info"})        
- 
-    
-    
     
 @app.get('/delete/equipment/<eqpt_id>')
 def delete_eqpt(eqpt_id):
@@ -2979,6 +2976,37 @@ def upload_file():
     return response['secure_url'] 
 
 #uploaded = uploader.upload(project, folder="smart_app/projects", resource_type="raw")
+
+@app.post('/test_image_single')
+def testImage():
+    image = request.files.get('image')
+    # print(request.files)
+    print(image)
+    if not image:
+        return jsonify({'message': 'No image provided', 'status': 'error'}), 400
+
+    if not image.content_type.startswith('image/'):
+        return jsonify({'message': 'File is not an image', 'status': 'error'}), 400
+    
+    print(image.filename, image.content_type)
+ 
+    try:
+        upload_result = upload_file_func(image, folder='hospital/logo', filename=image.filename)
+        print(upload_result)
+        image_url = upload_result['secure_url']
+    except Exception as e:
+        import traceback
+        print("Upload Error:", str(e))
+        print("Traceback:", traceback.format_exc())
+        return jsonify({
+            'message': f'Error uploading image: {str(e)}',
+            'status': 'error',
+            'detail': traceback.format_exc()
+        }), 500
+    
+    # print(image_url)
+    
+    return jsonify({'message': 'Image uploaded successfully', 'status': 'success'}), 200
 
 
 
