@@ -202,16 +202,16 @@ class Reportdb:
         return self.collection.insert_one(request.__dict__).inserted_id 
     
     def get_all(self):
-        return self.collection.find().sort("date_time", -1)
+        return self.collection.find({'softdeleted_at': None}).sort("date_time", -1)
     
     def get_by_stack(self, stack):
-        return self.collection.find({"stack": stack}).sort("created_at", -1)
+        return self.collection.find({"stack": stack, 'softdeleted_at': None}).sort("created_at", -1)
     
     def get_by_isMember(self, uid):
         return self.collection.find({'$or': [
                {'sender': uid},
                {'receiver': uid}
-           ]}).sort("date_time", -1)
+           ], 'softdeleted_at': None}).sort("date_time", -1)
     
     def get_by_report_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
@@ -234,6 +234,12 @@ class Reportdb:
     def give_feedback(self,report_id, dtls):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"feedback": dtls}}).modified_count>0
     
+    def add_doc(self, report_id, doc):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.docs": doc}}).modified_count>0
+    
+    def add_link(self, report_id, link):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.links": link}}).modified_count>0
+    
     def mark_completed(self,report_id):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Completed"}}).modified_count>0
     
@@ -241,9 +247,8 @@ class Reportdb:
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Incomplete"}}).modified_count>0
     
     def delete_report(self, report_id):
-        return self.collection.delete_one({"_id":ObjectId(report_id)}).deleted_count>0
+        return self.collection.update_one({"_id":ObjectId(report_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
 
-    
 class Projectdb:
     def __init__(self) -> None:
         self.collection = Projects

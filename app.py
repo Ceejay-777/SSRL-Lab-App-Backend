@@ -8,8 +8,7 @@ from werkzeug.utils import secure_filename
 from io import BytesIO
 import os 
 from properties import *
-import cloudinary
-from flask_jwt_extended import JWTManager
+from cloudinary.uploader import upload
 from main import create_app
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 
@@ -482,7 +481,7 @@ def user_edit_profile():
         email = request.json.get("email")
         if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
             try: 
-                uploaded = cloudinary.uploader.upload(avatar, folder="smart_app/avatars", resource_type="image")
+                uploaded = upload(avatar, folder="smart_app/avatars", resource_type="image")
                 app.logger.info(uploaded)
                 if "secure_url" in uploaded:
                     filename = uploaded["secure_url"]
@@ -2155,9 +2154,9 @@ def give_feedback(report_id):
         submitted = Report_db.give_feedback(report_id, feedback_dtls)
         
         if not submitted: 
-            return jsonify({"message" : 'An error occured! Try again', "status" : "success"})
+            return jsonify({"message" : 'An error occured! Try again', "status" : "success"}), 500
         
-        return jsonify({"message": "Feedback sent successfully", "status": "success"})
+        return jsonify({"message": "Feedback sent successfully", "status": "success"}), 200
         
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
@@ -2202,22 +2201,73 @@ def edit_report(report_id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
-@app.get('/report/delete/<report_id>')
+@app.delete('/report/delete/<report_id>')
+@jwt_required()
+@admin_and_lead_role_required
 def delete_report(report_id):
-    user_role = get_jwt()['user_role']
-    if not user_role == 'Admin' or not user_role == 'Lead':
-        return jsonify({"message": "Unauthorized access", "status": "error"}), 401
+    try:
+        deleted = Report_db.delete_report(report_id)
+        if not deleted:
+            return jsonify({"message" : "An error occured! Try again!", "status" : "error"}), 500
+        
+        return jsonify({"message" : "Report deleted successfully!", "status" : "success"}), 200
     
-    if "user_id" in session:
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+    
+@app.patch('/report/add_doc/<report_id>')
+@jwt_required()
+def add_doc(report_id):
+    try:
+        report = Report_db.get_by_report_id(report_id)
+        if not report:
+            return jsonify({"message": "Report not found", "status": "error"}), 404
+        
+        doc = request.files.get("doc")
+        if not doc:
+            return jsonify({"message": "No file uploaded", "status": "error"})
+        
+        filename = secure_filename(doc.filename)
+        if not AllowedExtension.files(filename):
+            return jsonify({"message" : 'Invalid file format! Try again', "status" : "error"}), 401
+        
+        try:
+            uploaded = upload_file_func(doc, "SSRL_Lab_App/report_submissions/", filename)
+            if not uploaded:
+                return jsonify({"message" : 'File upload error! Try again', "status" : "danger"}), 500
             
-            deleted = Report_db.delete_report(report_id)
-            
-            if deleted:
-                return jsonify({"message" : "Report deleted successfully!", "status" : "success"})
-            else:
-                return jsonify({"message" : "Report marked incomplete'", "status" : "danger"})
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+        except Exception as e:
+             return jsonify({"message": f'File upload error: {e}', 'status': "error"}), 500
+
+        doc_submission = {"filename": filename, "download_link": uploaded['secure_url'], "date_submitted": datetime.now()}
+        submitted = Report_db.add_doc(report_id, doc_submission)
+        
+        if not submitted:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        
+        return jsonify({"message": 'Document submitted successfully', "status" : "success"}), 200
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+    
+app.patch('report/add_link/<report_id>')
+@jwt_required()
+def add_link(report_id):
+    try:
+        report = Report_db.get_by_report_id(report_id)
+        if not report:
+            return jsonify({"message": "Report not found", "status": "error"}), 404
+        
+        link = request.json.get('link')
+        submitted = Report_db.add_link(report_id, link)
+        
+        if not submitted:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        
+        return jsonify({"message": 'Document submitted successfully', "status" : "success"}), 200
+    
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
 @app.post('/project/create') 
 def create_project():
@@ -2466,28 +2516,16 @@ def submit_project_doc(project_id): # Add notification
                     submitted = Project_db.submit_doc(project_id, project_submission)
                         
                     if submitted:
-                        # flash('Project submitted successfully',"success")
-                        # return redirect(url_for('view_project', project_id=project_id))
                         return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
                     else:
-                        # flash('An error occurred! Try again', "danger")
-                        # return redirect(url_for('view_project', project_id=project_id))
                         return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
             except:
-                # flash("Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "danger")
-                # return redirect(url_for('view_project', project_id=project_id))
                 return jsonify({"message" : "Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "status" : "danger"})
             else:
-                # flash('file upload error!', "danger")
-                # return redirect(url_for('view_project', project_id=project_id))
                 return jsonify({"message" : 'file upload error!', "status" : "danger"}), 500
         else:
-            # flash('Invalid file format! Try again', "danger")
-            # return redirect(url_for('view_project', project_id=project_id))
             return jsonify({"message" : 'Invalid file format! Try again', "status" : "danger"}), 401
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
 @app.patch('/project/submit_link/<project_id>') # Validate link input on frontend
