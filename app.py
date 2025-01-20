@@ -9,11 +9,13 @@ from io import BytesIO
 import os 
 from properties import *
 import cloudinary
-from cloudinary import uploader
+from flask_jwt_extended import JWTManager
+from main import app
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
-from bson import ObjectId
-import base64
+from funcs import *
 
 User_db = Userdb()
 Notifications = Notificationsdb()
@@ -28,59 +30,7 @@ Attendance_db  = Attendancedb()
 Attendance_db_v2  = Attendancedb_v2()
 Sessions_db = Sessionsdb()
 
-UPLOAD_FOLDER = 'static/images'
-PROJECT_FOLDER = 'submissions/projects'
-
-app = Flask(__name__)
-bcrypt = Bcrypt(app)
-CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}}, withCredentials = True)
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['PROJECT_FOLDER'] = PROJECT_FOLDER
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = 'covenantcrackslord03@gmail.com'
-app.config['MAIL_PASSWORD'] = email_pswd
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
-
-mail = Mail(app)
     
-def convert_to_json_serializable(doc):
-    if isinstance(doc, list):
-        return [convert_to_json_serializable(d) for d in doc]
-    if isinstance(doc, dict):
-        for k, v in doc.items():
-            if isinstance(v, ObjectId):
-                doc[k] = str(v)
-            elif isinstance(v, bytes):
-                doc[k] = base64.b64encode(v).decode('utf-8')
-            elif isinstance(v, (dict, list)):
-                doc[k] = convert_to_json_serializable(v)
-    return doc
-
-def upload_file_func(file, folder, filename):
-    return cloudinary.uploader.upload(file, folder=folder, upload_preset="intern_submissions", resource_type="raw", unique_filename=True,overwrite=True, public_id=filename, use_filename_as_display_name=True)
-    
-def get_date_now():
-    now = datetime.now().strftime
-    month = now("%B")
-
-    date = now("%d")
-    year = now("%Y")
-    return "{0} {1}, {2}".format(month, date, year)
-
-def check_session(session_id):
-    if session_id == "":
-        return False
-
-    session = Sessions_db.get_session(session_id)
-    
-    if not session:
-        return False
-    
-    return session["user_data"]
-
 @app.before_request
 def clean_up_sessions():
     Sessions_db.expire_sessions()
@@ -130,6 +80,8 @@ def update_session():
     
     return jsonify({"status": "success"})
 
+@app.get('/test')
+@jwt_required()
 def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
@@ -2071,8 +2023,32 @@ def post_report_form():
         # return redirect(url_for('login')) 
          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
+
+@app.get('/report/create/<report_id>')
+def create_report(report_id):
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
+    
+    if not "user_id" in user_data:
+        return redirect(url_for('login'))
+    
+    if "user_id" in user_data:
+        report = Report_db.get_by_report_id(report_id)
+        return render_template('pages/create_report.html', report=report)
+    else:
+        return redirect(url_for('login'))
+
+  
 @app.get('/view/report/<report_id>')
 def view_report(report_id):   
+    session_id = request.headers.get("Session_ID")
+    user_data = check_session(session_id)
+    
+    if user_data == False:
+        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
      
     if "user_id" in session:
         id = session["user_id"]
@@ -3010,5 +2986,4 @@ def testImage():
 
 
 
-if __name__=="__main__":
-    app.run(debug=True)
+
