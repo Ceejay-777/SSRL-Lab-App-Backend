@@ -2069,10 +2069,11 @@ def get_all_reports():
         user_uid = get_jwt_identity()
         info = get_jwt()
         user_role = info['user_role']
+        # user_role = 'Intern'
         stack = info['stack']
         
         if not user_role or not stack:
-            return jsonify({"message": "Somethings went wrong. Try logging in again.", "status": "error"}), 401
+            return jsonify({"message": "Something went wrong. Try logging in again.", "status": "error"}), 401
         
         if user_role == 'Admin':
             reports = Report_db.get_all()
@@ -2081,32 +2082,28 @@ def get_all_reports():
         else:
             reports = Report_db.get_by_isMember(user_uid)
             
-        response = convert_to_json_serializable({'reports': reports, 'status': 'success'})
-        return jsonify(response) 
+        response = convert_to_json_serializable({'reports': list(reports), 'status': 'success'})
+        return jsonify(response), 200
     
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"})
-        
-  
-@app.get('/view/report/<report_id>')
-def view_report(report_id):   
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
-     
-    if "user_id" in session:
-        id = session["user_id"]
-        
-        user_profile = User_db.get_user_by_oid(id)
+@app.get('/report/get_one/<report_id>')
+@jwt_required()
+def get_one(report_id):
+    try:
         report = Report_db.get_by_report_id(report_id)
-    
-        return jsonify({report:report, user_profile:user_profile, "status" : "success"})
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-    
-@app.get('/report/completed/<report_id>')
+        
+        if not report:
+            return jsonify({"message": "Report not found", "status": "error"}), 404
+        
+        response = convert_to_json_serializable({'report': report, 'status': 'success'}), 200
+        return jsonify(response), 200
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        
+@app.get('/report/completed/<report_id>') # Remove
 def mark_report_completed(report_id):
     
     if "user_id" in session:
@@ -2125,7 +2122,7 @@ def mark_report_completed(report_id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
-@app.get('/report/incomplete/<report_id>')
+@app.get('/report/incomplete/<report_id>')  # Remove
 def mark_report_incomplete(report_id):
     
     if "user_id" in session:
@@ -2144,25 +2141,26 @@ def mark_report_incomplete(report_id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
-@app.post('/report/feedback/<report_id>') 
-def report_feedback(report_id):
-    
-    if "user_id" in session:
-        feedback = {"feedback": request.form.get("feedback")}
-        submitted = Report_db.report_feedback(report_id, feedback)
+@app.post('/report/give_feedback/<report_id>') 
+@jwt_required()
+def give_feedback(report_id):
+    try:
+        feedback = request.json.get("feedback")
+        report = Report_db.get_by_report_id(report_id)
         
-        if submitted: 
-            # flash('Feedback sent successfully',"success")
-            # return redirect(url_for('view_report', report_id=report_id))
-            return jsonify({"message" : 'Feedback sent successfully', "status" : "success"})
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        if not report:
+            return jsonify({"message": "Report not found", "status": "error"}), 404
+        
+        feedback_dtls = {"feedback": feedback, "created_at": datetime.now()}
+        submitted = Report_db.give_feedback(report_id, feedback_dtls)
+        
+        if not submitted: 
+            return jsonify({"message" : 'An error occured! Try again', "status" : "success"})
+        
+        return jsonify({"message": "Feedback sent successfully", "status": "success"})
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
 @app.post('/report/edit/<report_id>')
 def edit_report(report_id):
@@ -2204,24 +2202,22 @@ def edit_report(report_id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
-@app.get('/delete/report/<report_id>')
+@app.get('/report/delete/<report_id>')
 def delete_report(report_id):
+    user_role = get_jwt()['user_role']
+    if not user_role == 'Admin' or not user_role == 'Lead':
+        return jsonify({"message": "Unauthorized access", "status": "error"}), 401
     
     if "user_id" in session:
             
             deleted = Report_db.delete_report(report_id)
             
             if deleted:
-                # flash ("Report deleted successfully!", "success")
-                # return redirect(url_for('all_submissions'))
                 return jsonify({"message" : "Report deleted successfully!", "status" : "success"})
             else:
-                # flash ('The request was unsuccessful!', "danger")
-                # return redirect(url_for('view_report', report_id=report_id))
                 return jsonify({"message" : "Report marked incomplete'", "status" : "danger"})
     else:
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
-
 
 @app.post('/project/create') 
 def create_project():

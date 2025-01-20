@@ -154,9 +154,6 @@ class Requestdb:
     def get_all(self):
         return self.collection.find().sort("date_time", -1)
     
-    def get_by_stack(self, stack):
-        return self.collection.find({"stack": stack}).sort("created_at", -1)
-    
     def get_by_request_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
 
@@ -207,6 +204,15 @@ class Reportdb:
     def get_all(self):
         return self.collection.find().sort("date_time", -1)
     
+    def get_by_stack(self, stack):
+        return self.collection.find({"stack": stack}).sort("created_at", -1)
+    
+    def get_by_isMember(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receiver': uid}
+           ]}).sort("date_time", -1)
+    
     def get_by_report_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
 
@@ -225,8 +231,8 @@ class Reportdb:
     def update_report_dtls(self,report_id, dtls):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls.__dict__}).modified_count>0
     
-    def report_feedback(self,report_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls}).modified_count>0
+    def give_feedback(self,report_id, dtls):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"feedback": dtls}}).modified_count>0
     
     def mark_completed(self,report_id):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Completed"}}).modified_count>0
