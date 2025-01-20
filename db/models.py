@@ -154,6 +154,9 @@ class Requestdb:
     def get_all(self):
         return self.collection.find().sort("date_time", -1)
     
+    def get_by_stack(self, stack):
+        return self.collection.find({"stack": stack}).sort("created_at", -1)
+    
     def get_by_request_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
 
@@ -589,16 +592,16 @@ class Project:
         self.deadline = deadline
         self.deleted = deleted
         
-class Report: 
-    def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
-        self.title = title
-        self.report_no = report_no
-        self.content = content
-        self.recipient = recipient
-        self.sender = sender
-        self.date_submitted = date_submitted
-        self.status = status
-        self.date_time = date_time
+# class Report: 
+#     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
+#         self.title = title
+#         self.report_no = report_no
+#         self.content = content
+#         self.recipient = recipient
+#         self.sender = sender
+#         self.date_submitted = date_submitted
+#         self.status = status
+#         self.date_time = date_time
         
 class Session:
     def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="false"):
@@ -606,30 +609,27 @@ class Session:
         self.created_at = created_at
         self.last_accessed = last_accessed
         self.expired = expired
-        
 class Report:
-    def __init__(self, title, stack, report_type, submissions={}, feedback=[], created_at=str(datetime.now())):
+    def __init__(self, title, stack, report_type, receiver, sender, submissions=None, feedback=None, created_at=None):
         self.title = title 
         self.stack = stack 
         self.report_type = report_type
-        self.submissions = submissions
-        self.feedback = feedback
-        self.created_at = created_at
-        
-        
+        self.submissions = submissions or {"docs": [], "links": []}
+        self.feedback = feedback or []
+        self.created_at = created_at or datetime.now()
+        self.receiver = receiver
+        self.sender = sender
 class ActivityReport(Report):
-    def __init__(self, title, stack, duration, completed, ongoing, next, report_type, submissions={}, feedback=[]):
-        super().__init__(title, stack, duration, report_type, submissions, feedback)
+    def __init__(self, title, stack, duration, report_type,  receiver, sender, next,  completed, ongoing):
+        super().__init__(title, stack, report_type, receiver, sender)
         
         self.duration = duration
         self.completed = completed
         self.ongoing = ongoing
         self.next = next
-        
-        
 class ProjectReport(Report):
-    def __init__(self, title, stack, summary, report_type, submissions={}, feedback=[]):
-        super().__init__(title, stack, report_type, submissions, feedback)
+    def __init__(self, title, stack, report_type, receiver, sender, summary):
+        super().__init__(title, stack, report_type, receiver, sender)
         
         self.summary = summary
          

@@ -11,7 +11,7 @@ from properties import *
 import cloudinary
 from flask_jwt_extended import JWTManager
 from main import create_app
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
@@ -89,7 +89,6 @@ def test():
     return jsonify(res), 200
 
 @app.post('/login')
-@cross_origin(supports_credentials=True)
 def authenticate_user():
     user_uid = request.json.get("user_id")
     pwd = request.json.get("pwd")
@@ -109,8 +108,8 @@ def authenticate_user():
         return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
     
     if user_profile:
-        # authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
-        authenticated = True
+        authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
+        # authenticated = True
         if authenticated is True:
             user_data["user_uid"] = user_uid
             user_data["user_id"] = str(user_profile["_id"])
@@ -124,12 +123,12 @@ def authenticate_user():
             
             user_profile = convert_to_json_serializable(user_profile)
             
-            access_token = create_access_token(identity=user_uid, extra_claims=extra_claims)
             extra_claims = {
                 "user_id": user_data["user_id"],
                 "user_role": user_data["user_role"],
                 "stack": user_data["stack"],
                  }
+            access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
             
             response = {
                 "message": f"Welcome! {user_profile['fullname']}",
@@ -2034,23 +2033,60 @@ def post_report_form():
          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 
-@app.get('/report/create/<report_id>')
-def create_report(report_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+@app.post('/report/create')
+@jwt_required()
+def create_report():
+    data = request.json
+    report_type = data.get('report_type')
+    title = data.get('title')
+    stack = data.get('stack')
+    receiver = data.get('receiver')
+    sender = data.get('sender')
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
-    
-    if not "user_id" in user_data:
-        return redirect(url_for('login'))
-    
-    if "user_id" in user_data:
-        report = Report_db.get_by_report_id(report_id)
-        return render_template('pages/create_report.html', report=report)
+    if report_type == "activity":
+        duration = data.get('duration')
+        completed = data.get('completed')
+        ongoing = data.get('ongoing')
+        next = data.get('next')
+        activityreport = ActivityReport(title=title, stack=stack, receiver=receiver, sender=sender, duration=duration, completed=completed, ongoing=ongoing, next=next, report_type=report_type)
+    elif report_type == "project":
+        summary = data.get('summary')   
+        projectsreport = ProjectReport(title=title, stack=stack, summary=summary, report_type=report_type, receiver=receiver, sender=sender) 
     else:
-        return redirect(url_for('login'))
-
+        return jsonify({"message": "Invalid report type", "status": "error"}), 400
+    
+    report_id = Report_db.insert_new(report_type == 'activity' and activityreport or projectsreport)
+    
+    if report_id:
+        return jsonify({"message": "Report created successfully!", "status": "success"}), 200
+    else:
+        return jsonify({"message": "Failed to create report", "status": "error"}), 500
+    
+@app.get('/report/get_all')
+@jwt_required()
+def get_all_reports():
+    try:
+        user_uid = get_jwt_identity()
+        info = get_jwt()
+        user_role = info['user_role']
+        stack = info['stack']
+        
+        if not user_role or not stack:
+            return jsonify({"message": "Somethings went wrong. Try logging in again.", "status": "error"}), 401
+        
+        if user_role == 'Admin':
+            reports = Report_db.get_all()
+        elif user_role == 'Lead':
+            reports = Report_db.get_by_stack(stack)
+        else:
+            reports = Report_db.get_by_isMember(user_uid)
+            
+        response = convert_to_json_serializable({'reports': reports, 'status': 'success'})
+        return jsonify(response) 
+    
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"})
+        
   
 @app.get('/view/report/<report_id>')
 def view_report(report_id):   
@@ -2066,11 +2102,8 @@ def view_report(report_id):
         user_profile = User_db.get_user_by_oid(id)
         report = Report_db.get_by_report_id(report_id)
     
-        # return render_template('pages/view_report.html', report=report, user_profile=user_profile)
         return jsonify({report:report, user_profile:user_profile, "status" : "success"})
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
     
 @app.get('/report/completed/<report_id>')

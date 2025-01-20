@@ -32,6 +32,8 @@ def create_app():
     app.config['CLOUDINARY_API_KEY'] = "614134161466845"
     app.config['CLOUDINARY_API_SECRET'] = "yxilIicreF-wO9SSXUdEWKuNj4k"
     app.config['JWT_SECRET_KEY'] = '33fa732c553cf6eebac80fab24b77ef8d49faf8d153b5695b0e61554183fc6c1'
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600
+    
 
     cloudinary.config(
             cloud_name=app.config['CLOUDINARY_CLOUD_NAME'],
