@@ -607,8 +607,32 @@ class Session:
         self.last_accessed = last_accessed
         self.expired = expired
         
-class         
+class Report:
+    def __init__(self, title, stack, report_type, submissions={}, feedback=[], created_at=str(datetime.now())):
+        self.title = title 
+        self.stack = stack 
+        self.report_type = report_type
+        self.submissions = submissions
+        self.feedback = feedback
+        self.created_at = created_at
         
+        
+class ActivityReport(Report):
+    def __init__(self, title, stack, duration, completed, ongoing, next, report_type, submissions={}, feedback=[]):
+        super().__init__(title, stack, duration, report_type, submissions, feedback)
+        
+        self.duration = duration
+        self.completed = completed
+        self.ongoing = ongoing
+        self.next = next
+        
+        
+class ProjectReport(Report):
+    def __init__(self, title, stack, summary, report_type, submissions={}, feedback=[]):
+        super().__init__(title, stack, report_type, submissions, feedback)
+        
+        self.summary = summary
+         
 class AllowedExtension:    
     def images(filename):
         ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'} 
