@@ -3,6 +3,8 @@ from bson import ObjectId
 from datetime import datetime
 from db.models import Sessionsdb
 from cloudinary.uploader import upload
+from flask_jwt_extended import get_jwt  
+from functools  import wraps
 
 Sessions_db = Sessionsdb()
 
@@ -40,3 +42,24 @@ def check_session(session_id):
         return False
     
     return session["user_data"]
+ 
+
+def admin_role_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_role = get_jwt()['user_role']
+        if user_role != 'Admin':
+            return {'message': 'Unauthorized access to admin dashboard, try changing you role', 'status': 'error'}, 401
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_and_lead_role_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_role = get_jwt()['user_role']
+        roles = ['Admin', 'Lead']
+        
+        if user_role not in roles:
+            return {'message': 'Unauthorized access, please contact the admin or lead', 'status': 'error'}, 401
+        return f(*args, **kwargs)
+    return decorated

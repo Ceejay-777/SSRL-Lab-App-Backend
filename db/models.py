@@ -202,7 +202,16 @@ class Reportdb:
         return self.collection.insert_one(request.__dict__).inserted_id 
     
     def get_all(self):
-        return self.collection.find().sort("date_time", -1)
+        return self.collection.find({'softdeleted_at': None}).sort("date_time", -1)
+    
+    def get_by_stack(self, stack):
+        return self.collection.find({"stack": stack, 'softdeleted_at': None}).sort("created_at", -1)
+    
+    def get_by_isMember(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receiver': uid}
+           ], 'softdeleted_at': None}).sort("date_time", -1)
     
     def get_by_report_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
@@ -222,8 +231,14 @@ class Reportdb:
     def update_report_dtls(self,report_id, dtls):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls.__dict__}).modified_count>0
     
-    def report_feedback(self,report_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls}).modified_count>0
+    def give_feedback(self,report_id, dtls):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"feedback": dtls}}).modified_count>0
+    
+    def add_doc(self, report_id, doc):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.docs": doc}}).modified_count>0
+    
+    def add_link(self, report_id, link):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.links": link}}).modified_count>0
     
     def mark_completed(self,report_id):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Completed"}}).modified_count>0
@@ -232,9 +247,8 @@ class Reportdb:
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Incomplete"}}).modified_count>0
     
     def delete_report(self, report_id):
-        return self.collection.delete_one({"_id":ObjectId(report_id)}).deleted_count>0
+        return self.collection.update_one({"_id":ObjectId(report_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
 
-    
 class Projectdb:
     def __init__(self) -> None:
         self.collection = Projects
@@ -589,16 +603,16 @@ class Project:
         self.deadline = deadline
         self.deleted = deleted
         
-class Report: 
-    def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
-        self.title = title
-        self.report_no = report_no
-        self.content = content
-        self.recipient = recipient
-        self.sender = sender
-        self.date_submitted = date_submitted
-        self.status = status
-        self.date_time = date_time
+# class Report: 
+#     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
+#         self.title = title
+#         self.report_no = report_no
+#         self.content = content
+#         self.recipient = recipient
+#         self.sender = sender
+#         self.date_submitted = date_submitted
+#         self.status = status
+#         self.date_time = date_time
         
 class Session:
     def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="false"):
@@ -606,30 +620,27 @@ class Session:
         self.created_at = created_at
         self.last_accessed = last_accessed
         self.expired = expired
-        
 class Report:
-    def __init__(self, title, stack, report_type, submissions={}, feedback=[], created_at=str(datetime.now())):
+    def __init__(self, title, stack, report_type, receiver, sender, submissions=None, feedback=None, created_at=None):
         self.title = title 
         self.stack = stack 
         self.report_type = report_type
-        self.submissions = submissions
-        self.feedback = feedback
-        self.created_at = created_at
-        
-        
+        self.submissions = submissions or {"docs": [], "links": []}
+        self.feedback = feedback or []
+        self.created_at = created_at or datetime.now()
+        self.receiver = receiver
+        self.sender = sender
 class ActivityReport(Report):
-    def __init__(self, title, stack, duration, completed, ongoing, next, report_type, submissions={}, feedback=[]):
-        super().__init__(title, stack, duration, report_type, submissions, feedback)
+    def __init__(self, title, stack, duration, report_type,  receiver, sender, next,  completed, ongoing):
+        super().__init__(title, stack, report_type, receiver, sender)
         
         self.duration = duration
         self.completed = completed
         self.ongoing = ongoing
         self.next = next
-        
-        
 class ProjectReport(Report):
-    def __init__(self, title, stack, summary, report_type, submissions={}, feedback=[]):
-        super().__init__(title, stack, report_type, submissions, feedback)
+    def __init__(self, title, stack, report_type, receiver, sender, summary):
+        super().__init__(title, stack, report_type, receiver, sender)
         
         self.summary = summary
          
