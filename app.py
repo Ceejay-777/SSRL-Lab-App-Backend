@@ -10,12 +10,14 @@ import os
 from properties import *
 import cloudinary
 from flask_jwt_extended import JWTManager
-from main import app
+from main import create_app
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
 from funcs import *
+
+app = create_app()
 
 User_db = Userdb()
 Notifications = Notificationsdb()
@@ -122,10 +124,18 @@ def authenticate_user():
             
             user_profile = convert_to_json_serializable(user_profile)
             
+            access_token = create_access_token(identity=user_uid, extra_claims=extra_claims)
+            extra_claims = {
+                "user_id": user_data["user_id"],
+                "user_role": user_data["user_role"],
+                "stack": user_data["stack"],
+                 }
+            
             response = {
                 "message": f"Welcome! {user_profile['fullname']}",
                 "status" : "success",
-                "user_profile": user_profile
+                "user_profile": user_profile,
+                "access_token": access_token
             }
             return response, 200
         else:
@@ -2985,5 +2995,6 @@ def testImage():
     return jsonify({'message': 'Image uploaded successfully', 'status': 'success'}), 200
 
 
-
+if __name__ == '__main__':
+    app.run(debug=True)
 
