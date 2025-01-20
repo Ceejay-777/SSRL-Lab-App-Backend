@@ -2250,7 +2250,7 @@ def add_doc(report_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-app.patch('report/add_link/<report_id>')
+@app.patch('/report/add_link/<report_id>')
 @jwt_required()
 def add_link(report_id):
     try:
@@ -2259,7 +2259,8 @@ def add_link(report_id):
             return jsonify({"message": "Report not found", "status": "error"}), 404
         
         link = request.json.get('link')
-        submitted = Report_db.add_link(report_id, link)
+        link_submission = {"link": link, "submitted_at": datetime.now()}
+        submitted = Report_db.add_link(report_id, link_submission)
         
         if not submitted:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
