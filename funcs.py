@@ -21,13 +21,12 @@ def convert_to_json_serializable(doc):
                 doc[k] = convert_to_json_serializable(v)
     return doc
 
-def upload_file_func(file, folder, filename):
-    return upload(file, folder=folder, upload_preset="intern_submissions", resource_type="raw", unique_filename=True,overwrite=True, public_id=filename, use_filename_as_display_name=True)
+def upload_func(file, folder):
+    return upload(file, folder=folder, upload_preset="intern_submissions")
     
 def get_date_now():
     now = datetime.now().strftime
     month = now("%B")
-
     date = now("%d")
     year = now("%Y")
     return "{0} {1}, {2}".format(month, date, year)
@@ -63,3 +62,7 @@ def admin_and_lead_role_required(f):
             return {'message': 'Unauthorized access, please contact the admin or lead', 'status': 'error'}, 401
         return f(*args, **kwargs)
     return decorated
+
+allowed_ext =  ['jpg', 'jpeg', 'png', 'gif']
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_ext

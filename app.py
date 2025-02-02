@@ -11,6 +11,8 @@ from properties import *
 from cloudinary.uploader import upload
 from main import create_app
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+import json
+from flask_mail import Message
 
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
@@ -89,10 +91,12 @@ def test():
 
 @app.post('/login')
 def authenticate_user():
-    user_uid = request.json.get("user_id")
+    user_uid = request.json.get("user_uid")
     pwd = request.json.get("pwd")
     user_profile = User_db.get_user_by_uid(user_uid)
-    print(user_profile["deleted"])
+    
+    if not user_profile:
+        return {"message": "Invalid login ID", "status" : "danger"}, 401
     
     if user_profile["deleted"] == "True":
         return jsonify({"message": "Could not find user with the inputted credentials.", "status": "error"}), 404
@@ -100,47 +104,28 @@ def authenticate_user():
     if user_profile["suspended"] == "True":
         return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
     
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+    authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
+    if not authenticated:
+        return {"message": "Invalid password","status" : "danger"}, 401
+        
+    user_profile = convert_to_json_serializable(user_profile)
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
+    extra_claims = {
+        "user_id": user_profile['_id'],
+        "user_role":  user_profile['role'],
+        "stack":  user_profile['stack']
+        }
     
-    if user_profile:
-        authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
-        # authenticated = True
-        if authenticated is True:
-            user_data["user_uid"] = user_uid
-            user_data["user_id"] = str(user_profile["_id"])
-            user_data["user_role"] = user_profile["role"]
-            user_data["stack"] = user_profile["stack"]
-            print(user_data)
-
-            session_updated = Sessions_db.update_session(session_id, user_data)
-            if not session_updated:
-                return jsonify({"status": "error", "message": "Something went wrong. Try logging in again 2."}), 500
-            
-            user_profile = convert_to_json_serializable(user_profile)
-            
-            extra_claims = {
-                "user_id": user_data["user_id"],
-                "user_role": user_data["user_role"],
-                "stack": user_data["stack"],
-                 }
-            access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
-            
-            response = {
-                "message": f"Welcome! {user_profile['fullname']}",
-                "status" : "success",
-                "user_profile": user_profile,
-                "access_token": access_token
-            }
-            return response, 200
-        else:
-            return {"message": "Invalid password","status" : "danger"}, 401
-    else:
-        return {"message": "Invalid login ID", "status" : "danger"}, 401
-
+    access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
+    
+    response = {
+        "message": f"Welcome! {user_profile['fullname']}",
+        "status" : "success",
+        "user_profile": user_profile,
+        "access_token": access_token
+    }
+    return response, 200
+        
 @app.get('/logout')
 @cross_origin(supports_credentials=True)
 def logout():
@@ -269,27 +254,25 @@ def change_password():
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
 @app.get('/home')
+@jwt_required()
 def home():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    print(user_data)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again", "status": "error"}), 401
-    
-    if "user_id" in user_data:
-        user_id = user_data.get("user_id")
-        uid = user_data.get("user_uid")
-        user_role = convert_to_json_serializable(user_data.get("user_role")) 
-        stack = user_data.get("stack")
-        user_profile = User_db.get_user_by_oid(user_id)
+    try:
+        uid = get_jwt_identity()
+        
+        user_profile = User_db.get_user_by_uid(uid)
+        if not user_profile:
+            return jsonify({"message": "User not found", "status": "error"}), 404
+        
+        uid = user_profile["uid"]
+        user_role =user_profile["role"]
+        stack = user_profile["stack"]
         firstname = user_profile["firstname"]
         avatar = user_profile["avatar"]
-        todos = list(Todos_db.get_todos_by_user_id_limited(user_id))
-        all_todos = list(Todos_db.get_todos_by_user_id(user_id))
+        todos = list(Todos_db.get_todos_by_user_id_limited(uid))
+        # all_todos = list(Todos_db.get_todos_by_user_id(user_id))
         
-        reports = list(Report_db.get_by_recipient_limited(user_role))
-        requests = list(Request_db.get_by_isMember(uid))
+        reports = list(Report_db.get_by_isMember_limited(uid))
+        requests = list(Request_db.get_by_isMember_limited(uid))
         notifications = list(Notifications.get_by_isMember_limited(uid))
             
         if user_role=="Admin":
@@ -298,21 +281,23 @@ def home():
             projects = list(Project_db.get_by_stack_limited(stack))
         else: projects = list(Project_db.get_by_isMember_limited(uid))
             
-        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "stack": stack, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"}) #Removed members, interns and taskscompleted. Will add notifications.
+        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "stack": stack, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"})
             
         return jsonify(response), 200
-    else:
-        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+    
+    except Exception as e:
+        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
 
 @app.get('/view/members') #Personnel tab 
+@jwt_required()
 def view_members():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
-    
-    if "user_id" in user_data:
+    try:
+        uid = get_jwt_identity()
+        user = User_db.get_user_by_uid(uid)
+        if not user:
+            return jsonify({'message': 'User not found', 'status': 'error'}), 404
+        
+        
         admins = list(User_db.get_user_by_role(role = "Admin"))
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
@@ -331,8 +316,8 @@ def view_members():
         "status" : "success"
         } 
         return jsonify(convert_to_json_serializable(response)), 200
-    else:
-        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+    except Exception as e:
+        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
 @app.get('/get_soft_members') #Personnel tab 
 def get_soft_members():
@@ -396,7 +381,7 @@ def show_user_profile(requested_id):
     else:
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
     
-@app.post('/admin/create/user')
+@app.post('/personnel/admin_create_user')
 def create_user():
     session_id = request.headers.get("Session_ID")
     user_data = check_session(session_id)
@@ -511,165 +496,78 @@ def user_edit_profile():
     else:
         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.patch('/admin/edit/profile/<edit_id>')
+@app.patch('/personnel/admin_edit/<edit_id>')
+@jwt_required()
+@admin_and_lead_role_required
 def admin_edit_profile(edit_id):
-    if "user_id" in session:
-        user_role = session["user_role"]
-        user_id = session["user_id"]
-        print(user_id)
-        # edit_user = User_db.get_user_by_uid(edit_id)
-        # user_id = edit_user['uid']
-        print(user_id, edit_id)
+    try:
+        data = json.loads(request.form.get('info'))
+        print(data)
         
-        if user_role=="Admin" and edit_id != user_id:
-            firstname = request.json.get("firstname")
-            surname = request.json.get("surname")
-            fullname = "{0} {1}".format(surname, firstname)
-            stack = request.json.get("stack")
-            niche = request.json.get("niche")
-            role = request.json.get("role")
-            if 'avatar' not in request.files:  avatar = None
-            else: avatar = request.files['avatar']
+        firstname =data.get("firstname")
+        surname =data.get("surname")
+        avatar = request.files.get("avatar")
+        print(avatar)
+        data["fullname"] = "{0} {1}".format(surname, firstname)
+        avatar_msg = ''
+        
+        edit_profile = User_db.get_user_by_uid(edit_id)
+        if not edit_profile:
+            return jsonify({"message": "User not found", "status": "error"}), 404
+        
+        if avatar:
+            if not allowed_file(avatar.filename):
+                return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
             
-            phone_num = request.json.get("phone_num")
-            email = request.json.get("email")
-            bio = request.json.get("bio")
-            # location = request.json.get("location")
-            bday = request.json.get("bday")
-            # mentor_id = request.json.get("mentor_id")
-            edit_profile = User_db.get_user_by_uid(edit_id)
-            oid = edit_profile["_id"]
-
-            if edit_profile["firstname"]==firstname:
-                uid = edit_profile["uid"]
-                
-                if (avatar):filename = avatar['filename']
-                else: filename = None
-                
-                dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role, filename, email, bio, bday, phone_num)
-
-                updated = User_db.update_user_profile_by_oid(oid, dtls)
+            if len(avatar.read()) > 500 * 1024:
+                return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
             
-                if updated:
-                    flash("profile updated successfully", "success")
-                    return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
-                else:
-                    flash("profile update unsuccessful!", "danger")
-                    return redirect(url_for('view_members'))
-            else:
-                uid = generate.user_id(firstname)
-                
-                dtls = AdminUpdateUser(firstname, surname, fullname, uid, stack, niche, role)
-
-                try:
-                    msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [edit_profile["email"]])
-                    msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
-                    
-                    mail.send(msg)
-                    
-                    updated = User_db.update_user_profile_by_oid(oid, dtls)
-                    if updated:
-                        flash("Profile updated successful!", "success")
-                        return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
-                    else:
-                        flash("profile update undsuccessful!", "danger")
-                        return redirect(url_for('view_members'))
-                except: 
-                    flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
-                    return redirect(url_for('view_members'))
-                
-        elif user_role=="Admin":
-            user_profile = User_db.get_user_by_oid(user_id)
-            firstname = request.json.get("firstname")
-            surname = request.json.get("surname")
-            fullname = "{0} {1}".format(surname, firstname)
-            stack = request.json.get("stack")
-            niche = request.json.get("niche")
-            role = request.json.get("role")
+            avatar.seek(0)
             
-            if 'avatar' not in request.files:  avatar = None
-            else: avatar = request.files['avatar']
+            try:
+                upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
+                
+                if not upload_result:
+                    avatar_msg = "Avatar upload failed"
+                    
+                avatar_msg = ''
+                avatar_url = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
+                print(avatar_url)
+                data['avatar'] = avatar_url
+                
+            except Exception as e:
+                return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500    
+        
+        edited = User_db.update_user(edit_id, data)
+        if not edited['success']:
+            return jsonify({"message": f"Profile update unsuccessful: {edited['error']}", "status": "error"}), 500
+        
+        return jsonify({"message": f"Profile updated successfully. {avatar_msg}", "status": "success"}), 200
+    
+    except Exception as e:
+        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+    
+     # try:
+        #     msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [edit_profile["email"]])
+        #     msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
             
-            phone_num = request.json.get("phone_num")
-            email = request.json.get("email")
-            bio = request.json.get("bio")
-            location = request.json.get("location")
-            bday = request.json.get("bday")
-
-            if user_profile["firstname"]==firstname:
-                uid = user_profile["uid"]
-                if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
-                    try:
-                        uploaded = cloudinary.uploader.upload(avatar, folder="smart_app/avatars", resource_type="image")
-                        
-                        if "secure_url" in uploaded:
-                            filename = uploaded["secure_url"]
-                            dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
-
-                            updated = User_db.update_user_profile_by_oid(oid, dtls)
-                        
-                            if updated:
-                                return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
-                            else:
-                                return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
-                        else:
-                            return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
-                    except:
-                        return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection", "status" : "danger"}), 500
-                else:
-                    user_profile = User_db.get_user_by_oid(oid)
-                    filename = user_profile["avatar"]
-                    dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
-
-                    updated = User_db.update_user_profile_by_oid(user_id, dtls)
-                    
-                    if updated:
-                        return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
-                    else:
-                            return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
-            else:
-                uid = generate.user_id(firstname)
-                if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
-                    try:
-                        uploaded = cloudinary.uploader.upload(avatar, folder="smart_app/avatars", resource_type="image")
-                    
-                        if "secure_url" in uploaded:
-                            filename = uploaded["secure_url"]
-                            dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
-
-                            updated = User_db.update_user_profile_by_oid(user_id, dtls)
-                            if updated:
-                                return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
-                            else:
-                                return jsonify({"message": "profile update unsuccessful", "status" : "danger"}), 403
-                        else:
-                            return jsonify({"message": "image upload error!", "status" : "danger"}), 403
-                    
-                    except:
-                        return jsonify({"message": "Unable to update your profile at the moment! Please make sure you have a strong internet connection", "status" : "danger"}), 500
-                else:
-                    user_profile = User_db.get_user_by_oid(user_id)
-                    filename = user_profile["avatar"]
-                    dtls = updateAdmin(firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday)
-
-                    try:
-                        msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [user_profile["email"]])
-                        msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
-                        
-                        mail.send(msg)
-                        
-                        updated = User_db.update_user_profile_by_oid(user_id, dtls)
-                        if updated:
-                            return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
-                        else:
-                            return jsonify({"message": "image upload error!", "status" : "danger"}), 403
-                    except: 
-                        return jsonify({"message": "Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "status" : "danger"}), 500
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
-
+        #     mail.send(msg)
+            
+        #     updated = User_db.update_user_profile_by_oid(oid, dtls)
+        #     if updated:
+        #         flash("Profile updated successful!", "success")
+        #         return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
+        #     else:
+        #         flash("profile update undsuccessful!", "danger")
+        #         return redirect(url_for('view_members'))
+        # except: 
+        #     flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
+        #     return redirect(url_for('view_members'))
+    
+   
+        
+    # return jsonify({"message": "Something went wrong. Please try again", "status" : "danger"}), 500
+            
 @app.patch('/add_lead/<intern_uid>') 
 def admin_add_lead(intern_uid):
     session_id = request.headers.get("Session_ID")
@@ -1781,14 +1679,6 @@ def create_request():
         type = request.json.get("type")
         request_dtls = request.json.get("request_dtls")
             
-        # if type =="Equipment":
-        #     eqpt = {
-        #         "id": eqpt_id,
-        #         "name": Eqpt_db.get_eqpt_by_id(eqpt_id)["name"] 
-        #     }
-        # else:
-        #     eqpt = "None"
-        
         receipient = request.json.get("receipient")
         sender = uid
         sender_name = User_db.get_user_fullname(uid)
@@ -2343,28 +2233,24 @@ def view_project(project_id):
         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
   
 @app.get('/project/get_all')
+@jwt_required()
 def get_all_projects():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+    try:
+        uid = get_jwt_identity()
+        user_role = get_jwt()['user_role']
+        stack = get_jwt()['stack']
+        
+        if user_role=="Admin":
+            projects = list(Project_db.get_all())
+        elif user_role == "Lead":
+            projects = list(Project_db.get_by_stack(stack, uid))
+        else: projects = list(Project_db.get_by_isMember(uid))
+        
+        response = convert_to_json_serializable({"projects": projects, "status": "success"})
+        return jsonify(response), 200
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" not in user_data:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
-    
-    user_role = convert_to_json_serializable(user_data.get("user_role")) 
-    stack = user_data.get("stack")
-    uid = user_data.get("user_uid")
-    
-    if user_role=="Admin":
-        projects = list(Project_db.get_all())
-    elif user_role == "Lead":
-        projects = list(Project_db.get_by_stack(stack))
-    else: projects = list(Project_db.get_by_isMember(uid))
-    
-    response = convert_to_json_serializable({"projects": projects, "status": "success"})
-    return jsonify(response), 200
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
   
 @app.patch('/project/completed/<project_id>')
 def mark_project_completed(project_id):

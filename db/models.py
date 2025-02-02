@@ -55,6 +55,20 @@ class Userdb:
     def get_users_by_stack_limited(self, stack):
         return self.collection.find({"stack":stack}).limit(4)
     
+    # def update_user(self, user_id, dtls):
+    #     return self.collection.update_one({"uid":user_id},{"$set":dtls}).modified_count>0
+    
+    def update_user(self, user_id, dtls):
+        try:
+            result = self.collection.update_one({"uid": user_id}, {"$set": dtls})
+            if result.matched_count == 0:
+                return {"success": False, "error": "No user found with the given UID"}
+            if result.modified_count == 0:
+                return {"success": False, "error": "No changes were made to the document"}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
 class Notificationsdb:
     def __init__(self):
         self.collection = Notifications
@@ -67,7 +81,7 @@ class Notificationsdb:
         return self.collection.find({'receivers' : uid})
     
     def get_by_isMember_limited(self, uid):
-        return self.collection.find({'receivers' : uid}).limit(5)
+        return self.collection.find({'receivers' : uid}).limit(3)
     
     # Get all notifications for a particular user
     
@@ -167,7 +181,7 @@ class Requestdb:
         return self.collection.find({'$or': [
                {'sender': uid},
                {'receipient': uid}
-           ]}).sort("date_time", -1).limit(4)
+           ]}).sort("date_time", -1).limit(3)
     
     def get_by_sender(self, uid): # Remove
         return self.collection.find({"sender":uid}).sort("date_time", -1)
@@ -212,6 +226,12 @@ class Reportdb:
                {'sender': uid},
                {'receiver': uid}
            ], 'softdeleted_at': None}).sort("date_time", -1)
+        
+    def get_by_isMember_limited(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receiver': uid}
+           ], 'softdeleted_at': None}).sort("date_time", -1).limit(3)
     
     def get_by_report_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
@@ -327,8 +347,11 @@ class Projectdb:
     def get_by_stack_limited(self, stack):
         return self.collection.find({"stack" : stack}).sort("date_time", -1).limit(4)
     
-    def get_by_stack(self, stack):
-        return self.collection.find({"stack" : stack}).sort("date_time", -1)
+    def get_by_stack(self, stack, uid):
+        return self.collection.find({"$or" : [
+            {"stack" : stack}, 
+            {"uid": uid}
+        ]}).sort("date_time", -1)
     
     def get_by_recipient_dtls(self, category, recipient, name):
         return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1)
@@ -534,16 +557,6 @@ class lostEqpt:
         self.status = status
         self.date_reported = date_reported
         self.date_edited = date_edited
-
-class updateUser:
-    def __init__(self, filename, phone_num, bio, location, bday, email) -> None:
-        self.avatar = filename
-        self.phone_num = phone_num
-        self.bio = bio
-        self.location = location
-        self.bday = bday
-        self.email = email
-        self.phone_num = phone_num
         
 class updateAdmin:
     def __init__(self, firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday) -> None:
@@ -560,21 +573,6 @@ class updateAdmin:
         self.bio = bio
         self.location = location
         self.bday = bday
-
-class AdminUpdateUser:
-    def __init__(self, firstname, surname, fullname, uid, stack, niche, role, filename, email, bio, bday, phone_num) -> None:
-        self.firstname = firstname
-        self.surname = surname
-        self.fullname = fullname
-        self.uid = uid
-        self.stack = stack
-        self.niche = niche
-        self.role = role
-        self.avatar = filename
-        self.email = email
-        self.bio = bio
-        self.bday = bday
-        self.phone_num = phone_num
         
 class Request:
     def __init__(self, title, type, sender, receipient, date_submitted, date_time, request_dtls, status="Pending") -> None:
