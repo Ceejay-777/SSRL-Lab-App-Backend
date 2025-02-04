@@ -55,6 +55,20 @@ class Userdb:
     def get_users_by_stack_limited(self, stack):
         return self.collection.find({"stack":stack}).limit(4)
     
+    # def update_user(self, user_id, dtls):
+    #     return self.collection.update_one({"uid":user_id},{"$set":dtls}).modified_count>0
+    
+    def update_user(self, user_id, dtls):
+        try:
+            result = self.collection.update_one({"uid": user_id}, {"$set": dtls})
+            if result.matched_count == 0:
+                return {"success": False, "error": "No user found with the given UID"}
+            if result.modified_count == 0:
+                return {"success": False, "error": "No changes were made to the document"}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
 class Notificationsdb:
     def __init__(self):
         self.collection = Notifications
@@ -67,7 +81,7 @@ class Notificationsdb:
         return self.collection.find({'receivers' : uid})
     
     def get_by_isMember_limited(self, uid):
-        return self.collection.find({'receivers' : uid}).limit(5)
+        return self.collection.find({'receivers' : uid}).limit(3)
     
     # Get all notifications for a particular user
     
@@ -167,7 +181,7 @@ class Requestdb:
         return self.collection.find({'$or': [
                {'sender': uid},
                {'receipient': uid}
-           ]}).sort("date_time", -1).limit(4)
+           ]}).sort("date_time", -1).limit(3)
     
     def get_by_sender(self, uid): # Remove
         return self.collection.find({"sender":uid}).sort("date_time", -1)
@@ -202,7 +216,22 @@ class Reportdb:
         return self.collection.insert_one(request.__dict__).inserted_id 
     
     def get_all(self):
-        return self.collection.find().sort("date_time", -1)
+        return self.collection.find({'softdeleted_at': None}).sort("date_time", -1)
+    
+    def get_by_stack(self, stack):
+        return self.collection.find({"stack": stack, 'softdeleted_at': None}).sort("created_at", -1)
+    
+    def get_by_isMember(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receiver': uid}
+           ], 'softdeleted_at': None}).sort("date_time", -1)
+        
+    def get_by_isMember_limited(self, uid):
+        return self.collection.find({'$or': [
+               {'sender': uid},
+               {'receiver': uid}
+           ], 'softdeleted_at': None}).sort("date_time", -1).limit(3)
     
     def get_by_report_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
@@ -222,8 +251,14 @@ class Reportdb:
     def update_report_dtls(self,report_id, dtls):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls.__dict__}).modified_count>0
     
-    def report_feedback(self,report_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls}).modified_count>0
+    def give_feedback(self,report_id, dtls):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"feedback": dtls}}).modified_count>0
+    
+    def add_doc(self, report_id, doc):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.docs": doc}}).modified_count>0
+    
+    def add_link(self, report_id, link):
+        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.links": link}}).modified_count>0
     
     def mark_completed(self,report_id):
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Completed"}}).modified_count>0
@@ -232,18 +267,17 @@ class Reportdb:
         return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Incomplete"}}).modified_count>0
     
     def delete_report(self, report_id):
-        return self.collection.delete_one({"_id":ObjectId(report_id)}).deleted_count>0
+        return self.collection.update_one({"_id":ObjectId(report_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
 
-    
 class Projectdb:
     def __init__(self) -> None:
         self.collection = Projects
         
     def get_all(self):
-        return self.collection.find({"deleted":"False"}).sort("date_time")
+        return self.collection.find({"deleted":"False"}).sort("date_created")
     
     def get_all_limited(self):
-        return self.collection.find({"deleted":"False"}).sort("date_time").limit(4)
+        return self.collection.find({"deleted":"False"}).sort("date_created").limit(4)
     
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
@@ -313,8 +347,11 @@ class Projectdb:
     def get_by_stack_limited(self, stack):
         return self.collection.find({"stack" : stack}).sort("date_time", -1).limit(4)
     
-    def get_by_stack(self, stack):
-        return self.collection.find({"stack" : stack}).sort("date_time", -1)
+    def get_by_stack(self, stack, uid):
+        return self.collection.find({"$or" : [
+            {"stack" : stack}, 
+            {"uid": uid}
+        ]}).sort("date_time", -1)
     
     def get_by_recipient_dtls(self, category, recipient, name):
         return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1)
@@ -485,13 +522,13 @@ class User:
         self.deleted = deleted
         
 class Notification:
-    def __init__(self, title, receivers, type, message, status, sentAt) -> None:
+    def __init__(self, title, receivers, type, message, status="unread", sentAt=None) -> None:
         self.title = title
         self.receivers = receivers
         self.type = type
         self.message = message
         self.status = status
-        self.sentAt = sentAt
+        self.sentAt = sentAt or datetime.now()
 
 class Eqpt:
     def __init__(self, name, quantity, description, date_of_arrival, type, status, datetime_inputed, date_inserted) -> None:
@@ -520,16 +557,6 @@ class lostEqpt:
         self.status = status
         self.date_reported = date_reported
         self.date_edited = date_edited
-
-class updateUser:
-    def __init__(self, filename, phone_num, bio, location, bday, email) -> None:
-        self.avatar = filename
-        self.phone_num = phone_num
-        self.bio = bio
-        self.location = location
-        self.bday = bday
-        self.email = email
-        self.phone_num = phone_num
         
 class updateAdmin:
     def __init__(self, firstname, surname, fullname, uid, stack, niche, role, filename, phone_num, email, bio, location, bday) -> None:
@@ -546,21 +573,6 @@ class updateAdmin:
         self.bio = bio
         self.location = location
         self.bday = bday
-
-class AdminUpdateUser:
-    def __init__(self, firstname, surname, fullname, uid, stack, niche, role, filename, email, bio, bday, phone_num) -> None:
-        self.firstname = firstname
-        self.surname = surname
-        self.fullname = fullname
-        self.uid = uid
-        self.stack = stack
-        self.niche = niche
-        self.role = role
-        self.avatar = filename
-        self.email = email
-        self.bio = bio
-        self.bday = bday
-        self.phone_num = phone_num
         
 class Request:
     def __init__(self, title, type, sender, receipient, date_submitted, date_time, request_dtls, status="Pending") -> None:
@@ -589,16 +601,16 @@ class Project:
         self.deadline = deadline
         self.deleted = deleted
         
-class Report: 
-    def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
-        self.title = title
-        self.report_no = report_no
-        self.content = content
-        self.recipient = recipient
-        self.sender = sender
-        self.date_submitted = date_submitted
-        self.status = status
-        self.date_time = date_time
+# class Report: 
+#     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
+#         self.title = title
+#         self.report_no = report_no
+#         self.content = content
+#         self.recipient = recipient
+#         self.sender = sender
+#         self.date_submitted = date_submitted
+#         self.status = status
+#         self.date_time = date_time
         
 class Session:
     def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="false"):
@@ -606,9 +618,30 @@ class Session:
         self.created_at = created_at
         self.last_accessed = last_accessed
         self.expired = expired
+class Report:
+    def __init__(self, title, stack, report_type, receiver, sender, submissions=None, feedback=None, created_at=None):
+        self.title = title 
+        self.stack = stack 
+        self.report_type = report_type
+        self.submissions = submissions or {"docs": [], "links": []}
+        self.feedback = feedback or []
+        self.created_at = created_at or datetime.now()
+        self.receiver = receiver
+        self.sender = sender
+class ActivityReport(Report):
+    def __init__(self, title, stack, duration, report_type,  receiver, sender, next,  completed, ongoing):
+        super().__init__(title, stack, report_type, receiver, sender)
         
-class         
+        self.duration = duration
+        self.completed = completed
+        self.ongoing = ongoing
+        self.next = next
+class ProjectReport(Report):
+    def __init__(self, title, stack, report_type, receiver, sender, summary):
+        super().__init__(title, stack, report_type, receiver, sender)
         
+        self.summary = summary
+         
 class AllowedExtension:    
     def images(filename):
         ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'} 
