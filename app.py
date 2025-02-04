@@ -320,14 +320,9 @@ def view_members():
         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
 @app.get('/get_soft_members') #Personnel tab 
+@jwt_required()
 def get_soft_members():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
-    
-    if "user_id" in user_data:
+    try:
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
         
@@ -339,18 +334,13 @@ def get_soft_members():
         "status" : "success"
         } 
         return jsonify(convert_to_json_serializable(response)), 200
-    else:
-        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+    except Exception as e:
+        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
 @app.get('/get_hard_members') #Personnel tab 
+@jwt_required()
 def get_hard_members():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
-    
-    if "user_id" in user_data:
+    try:
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
         
@@ -362,8 +352,8 @@ def get_hard_members():
         "status" : "success"
         } 
         return jsonify(convert_to_json_serializable(response)), 200
-    else:
-        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+    except Exception as e:
+        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
 
 @app.get('/show/profile/<requested_id>') #user ID created by database
 def show_user_profile(requested_id):
@@ -382,58 +372,83 @@ def show_user_profile(requested_id):
         return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
     
 @app.post('/personnel/admin_create_user')
+@jwt_required()
+@admin_and_lead_role_required
 def create_user():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401
-    
-    if "user_id" in user_data:
-        user_role = user_data["user_role"]
+    try:
+        data = json.loads(request.form.get('info'))
+        print(data)
+        firstname =data.get("firstname")
+        surname =data.get("lastname")
+        stack =data.get("stack")
+        niche =data.get("niche")
+        role =data.get("role")
+        phone_num =data.get("phone_num")
+        email =data.get("email")
+        mentor_id = "NIL"
+        task_id = "NIL"
+        bio =data.get("bio", "NIL")
+        location = "NIL"
+        bday =data.get("bday", "NIL")
+        now = datetime.now().strftime
+        month = now("%B")
+        year =  now("%Y")
+        datetime_created = "{0}, {1}".format(month, year)
+        fullname = "{0} {1}".format(surname, firstname)
+        pwd = generate.password()
+        hashed_pwd = generate_password_hash(pwd)
+        uid = generate.user_id(firstname)
         
-        if user_role == "Admin" or user_role == "Lead":
-            firstname = request.json.get("firstname")
-            surname = request.json.get("surname")
-            fullname = "{0} {1}".format(surname, firstname)
-            pwd = generate.password()
-            hashed_pwd = generate_password_hash(pwd)
-            uid = generate.user_id(firstname)
-            stack = request.json.get("stack")
-            niche = request.json.get("niche")
-            role = request.json.get("role")
-            phone_num = request.json.get("phone_num")
-            email = request.json.get("email")
-            mentor_id = "NIL"
-            avatar = "NIL"
-            task_id = "NIL"
-            bio = "NIL"
-            location = "NIL"
-            bday = "NIL"
-            now = datetime.now().strftime
-            month = now("%B")
-            year =  now("%Y")
-            datetime_created = "{0}, {1}".format(month, year)
-            usr = User(firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar, task_id, bio, location, bday, datetime_created)
+        avatar = request.files.get("avatar", None)
+        avatar_msg = ''
+        if avatar :
+            if not allowed_file(avatar.filename):
+                return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
+            
+            if len(avatar.read()) > 500 * 1024:
+                return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
+            
+            avatar.seek(0)
             
             try:
-                msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
-                msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
+                upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
                 
-                mail.send(msg)
-            
-                user_id = User_db.create_user(usr)
+                if not upload_result:
+                    avatar_msg = "Avatar upload failed"
+                    
+                avatar_msg = ''
+                avatar_url = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
                 
-                response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
-                
-                return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
             except Exception as e:
-                print(e)
-                return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
-        else:
-            return jsonify({"message": "Permission not granted", "status" : "info"}), 403
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
+                return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500
+        
+        
+        user = User(firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar_url, task_id, bio, location, bday, datetime_created)
+        
+        user_id= User_db.create_user(user)
+        if not user_id:
+            return jsonify({"message": "Unable to create user at the moment. Please try again", "status" : "danger"}), 500
+        
+        # try:
+        #     msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
+        #     msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
+            
+        #     mail.send(msg)
+        
+            
+        #     response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
+            
+        #     return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
+        # except Exception as e:
+        #     print(e)
+        #     return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
+        
+        response = convert_to_json_serializable({"message" : f"user {uid} created successfully. {avatar_msg}", "user_id" : str(user_id), "status" : "success"})
+        return jsonify(response)
+        
+    except Exception as e:
+        print(e)
+        return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "danger"}), 500
     
 @app.get('/view/profile/me')
 def view_profile_me():
@@ -569,16 +584,12 @@ def admin_edit_profile(edit_id):
     # return jsonify({"message": "Something went wrong. Please try again", "status" : "danger"}), 500
             
 @app.patch('/add_lead/<intern_uid>') 
+@jwt_required()
+@admin_and_lead_role_required
 def admin_add_lead(intern_uid):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
+    try:
         stack = User_db.get_user_by_uid(intern_uid)["stack"]
-        user_role = user_data["user_role"]
+        user_role = get_jwt()['user_role']
         
         if user_role == "Admin" or user_role == "Lead":
             dtls = {
@@ -590,9 +601,13 @@ def admin_add_lead(intern_uid):
             else:
                 return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
         else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
+            print(e)
+            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401  
+        
+    except Exception as e:  
+            return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+
+    
     
 @app.patch('/remove_lead/<intern_uid>') 
 def admin_remove_lead(intern_uid):
@@ -2161,15 +2176,10 @@ def add_link(report_id):
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
 @app.post('/project/create') 
+@jwt_required()
 def create_project():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401
-    
-    if "user_id" in user_data:
-        uid = user_data["user_uid"]
+    try:
+        uid = get_jwt_identity()
         
         data = request.json
         name = data.get("name")
@@ -2177,35 +2187,46 @@ def create_project():
         objectives = data.get("objectives") 
         leads = data.get("leads")
         team_members = data.get("team_members") 
+        stack = data.get("stack")
+        deadline = data.get("deadline")
         
         team_avatars = []
         
         for lead in leads:
-            profile_avatar = User_db.get_user_by_uid(lead)['avatar']
-            team_avatars.append(profile_avatar)
+            profile = User_db.get_user_by_uid(lead['id'])
+            if not profile:
+                continue
+            else:
+                avatar = profile['avatar']
+                if avatar != 'NIL':
+                    team_avatars.append(avatar['secure_url'])
+                else: team_avatars.append('NIL')
+                    
+        for member in team_members:
+            profile = User_db.get_user_by_uid(member['id'])
+            if not profile:
+                continue
+            else:
+                avatar = profile['avatar']
+                if avatar != 'NIL':
+                    team_avatars.append(avatar['secure_url'])
+                else: team_avatars.append('NIL')
             
-        for team_member in team_members:
-            profile_avatar = User_db.get_user_by_uid(team_member)['avatar']
-            team_avatars.append(profile_avatar)
-            
-        stack = data.get("stack")
-        deadline = data.get("deadline")
         createdBy = uid
         submissions = {"docs": [], "links": []} 
            
-        date_created = get_date_now()
+        date_created = datetime.now()
         project_status = "Uncompleted"
         
         project = Project(name, description, objectives, leads, team_members, team_avatars, stack, createdBy, project_status, submissions, date_created, deadline) #Removed recipient_dtls
         project_id = Project_db.insert_new(project)
+        # project_id = None
         
         not_title = "New Project"
         not_receivers = leads + team_members
         not_type = "Project"
         not_message = f"You have been added to a new project {name}. Check it out in your projects tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        notification = Notification(not_title, not_receivers, not_type, not_message)
         
         if project_id:
             response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
@@ -2213,25 +2234,25 @@ def create_project():
         else:
             response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
         return(response)
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(error_details)  
+        return {'message': f'An error occurred: {str(e)}', 'status': 'error', "traceback": error_details}, 500
 
 @app.get('/project/view/<project_id>')
 def view_project(project_id):
-    
-    if "user_id" in session:
+    try:
         project = Project_db.get_by_project_id(project_id)
         
-        if (not project):
+        if not project:
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
             
         response = convert_to_json_serializable({"project": project, "status": "success"})
         return jsonify(response), 200
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
-  
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+    
 @app.get('/project/get_all')
 @jwt_required()
 def get_all_projects():
@@ -2253,15 +2274,9 @@ def get_all_projects():
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
   
 @app.patch('/project/completed/<project_id>')
+@jwt_required()
 def mark_project_completed(project_id):
-    session_id = request.headers.get("Session_ID")
-    print(session_id)
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
+    try:
         project = Project_db.get_by_project_id(project_id)
         
         if (not Project_db.project_exists(project_id)):
@@ -2269,6 +2284,7 @@ def mark_project_completed(project_id):
         
         name = Project_db.get_project_name(project_id)
         members = Project_db.get_project_members(project_id)
+        members = [member['id'] for member in members]
         
         if (project['status'] == 'Completed'):
             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
@@ -2279,27 +2295,20 @@ def mark_project_completed(project_id):
         not_receivers = members
         not_type = "Project"
         not_message = f"Project '{name}' has been marked as complete. Check it out in your projects tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        notification = Notification(not_title, not_receivers, not_type, not_message)
         
         if marked: 
             Notifications.send_notification(notification)
             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
         else:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
 @app.patch('/project/incomplete/<project_id>') 
 def mark_project_incomplete(project_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
+    try:
         project = Project_db.get_by_project_id(project_id)
         
         if (not Project_db.project_exists(project_id)):
@@ -2307,6 +2316,7 @@ def mark_project_incomplete(project_id):
         
         name = Project_db.get_project_name(project_id)
         members = Project_db.get_project_members(project_id)
+        members = [member['id'] for member in members]
         
         if (project['status'] == 'Uncompleted'):
             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
@@ -2317,17 +2327,16 @@ def mark_project_incomplete(project_id):
         not_receivers = members
         not_type = "Project"
         not_message = f"Project '{name}' has been marked as incomplete. Check it out in your projects tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        notification = Notification(not_title, not_receivers, not_type, not_message)
         
         if marked: 
             Notifications.send_notification(notification)
             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         else:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
 @app.patch('/project/edit/<project_id>') # Add notifications
 def edit_project(project_id): # Who can edit a project? Name, description, objectives, team_members, leads, deadline
@@ -2353,40 +2362,33 @@ def edit_project(project_id): # Who can edit a project? Name, description, objec
     
 @app.delete('/project/delete/<project_id>')
 def delete_project(project_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
+    try:
         if (not Project_db.project_exists(project_id)):
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
         name = Project_db.get_project_name(project_id)
         members = Project_db.get_project_members(project_id)
+        members = [member['id'] for member in members]
         deleted = Project_db.delete_project(project_id, name)
             
         not_title = "Project Deleted"
         not_receivers = members
         not_type = "Project"
         not_message = f"Project '{name}' has been deleted."
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        notification = Notification(not_title, not_receivers, not_type, not_message)
             
         if deleted:
             Notifications.send_notification(notification)
             return jsonify({"message": "Project deleted successfully!", "status" : "success"}), 200
         else:
             return jsonify({"message": 'The project could not be deleted!', "status" : "danger"}), 500
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
 @app.patch('/project/submit_doc/<project_id>') # Check file size and confirm that file of the same metadata does not exist.
 def submit_project_doc(project_id): # Add notification
-    if "user_id" in session:
-        
+    try:
         if (not Project_db.project_exists(project_id)):
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
@@ -2395,7 +2397,7 @@ def submit_project_doc(project_id): # Add notification
         
         if submission and AllowedExtension.files(filename):
             try:
-                uploaded = upload_file_func(submission, "SSRL_Lab_App/project_submissions/", filename)
+                uploaded = upload_file(submission, "SSRL_Lab_App/project_submissions/", filename)
 
                 if uploaded:
                     filepath = uploaded["secure_url"]
@@ -2412,8 +2414,9 @@ def submit_project_doc(project_id): # Add notification
                 return jsonify({"message" : 'file upload error!', "status" : "danger"}), 500
         else:
             return jsonify({"message" : 'Invalid file format! Try again', "status" : "danger"}), 401
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
 @app.patch('/project/submit_link/<project_id>') # Validate link input on frontend
 def submit_project_link(project_id): # Add notification

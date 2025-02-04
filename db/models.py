@@ -274,10 +274,10 @@ class Projectdb:
         self.collection = Projects
         
     def get_all(self):
-        return self.collection.find({"deleted":"False"}).sort("date_time")
+        return self.collection.find({"deleted":"False"}).sort("date_created")
     
     def get_all_limited(self):
-        return self.collection.find({"deleted":"False"}).sort("date_time").limit(4)
+        return self.collection.find({"deleted":"False"}).sort("date_created").limit(4)
     
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
@@ -522,13 +522,13 @@ class User:
         self.deleted = deleted
         
 class Notification:
-    def __init__(self, title, receivers, type, message, status, sentAt) -> None:
+    def __init__(self, title, receivers, type, message, status="unread", sentAt=None) -> None:
         self.title = title
         self.receivers = receivers
         self.type = type
         self.message = message
         self.status = status
-        self.sentAt = sentAt
+        self.sentAt = sentAt or datetime.now()
 
 class Eqpt:
     def __init__(self, name, quantity, description, date_of_arrival, type, status, datetime_inputed, date_inserted) -> None:
