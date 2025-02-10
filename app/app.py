@@ -9,16 +9,15 @@ from io import BytesIO
 import os 
 from properties import *
 from cloudinary.uploader import upload
-from main import create_app
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 import json
 from flask_mail import Message
+from main import app
+from app.extensions import mail
 
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
 from funcs import *
-
-app = create_app()
 
 User_db = Userdb()
 Notifications = Notificationsdb()
@@ -89,673 +88,605 @@ def test():
     res = {"message" : "Test success"}
     return jsonify(res), 200
 
-@app.post('/login')
-def authenticate_user():
-    user_uid = request.json.get("user_uid")
-    pwd = request.json.get("pwd")
-    user_profile = User_db.get_user_by_uid(user_uid)
+# @app.post('/login')
+# def login():
+#     user_uid = request.json.get("user_uid")
+#     pwd = request.json.get("pwd")
+#     user_profile = User_db.get_user_by_uid(user_uid)
     
-    if not user_profile:
-        return {"message": "Invalid login ID", "status" : "danger"}, 401
+#     if not user_profile:
+#         return {"message": "Invalid login ID", "status" : "danger"}, 401
     
-    if user_profile["deleted"] == "True":
-        return jsonify({"message": "Could not find user with the inputted credentials.", "status": "error"}), 404
+#     if user_profile["deleted"] == "True":
+#         return jsonify({"message": "Could not find user with the inputted credentials.", "status": "error"}), 404
     
-    if user_profile["suspended"] == "True":
-        return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
+#     if user_profile["suspended"] == "True":
+#         return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
     
-    authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
-    if not authenticated:
-        return {"message": "Invalid password","status" : "danger"}, 401
+#     authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
+#     if not authenticated:
+#         return {"message": "Invalid password","status" : "danger"}, 401
         
-    user_profile = convert_to_json_serializable(user_profile)
+#     user_profile = convert_to_json_serializable(user_profile)
     
-    extra_claims = {
-        "user_id": user_profile['_id'],
-        "user_role":  user_profile['role'],
-        "stack":  user_profile['stack']
-        }
+#     extra_claims = {
+#         "user_id": user_profile['_id'],
+#         "user_role":  user_profile['role'],
+#         "stack":  user_profile['stack']
+#         }
     
-    access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
+#     access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
     
-    response = {
-        "message": f"Welcome! {user_profile['fullname']}",
-        "status" : "success",
-        "user_profile": user_profile,
-        "access_token": access_token
-    }
-    return response, 200
+#     response = {
+#         "message": f"Welcome! {user_profile['fullname']}",
+#         "status" : "success",
+#         "user_profile": user_profile,
+#         "access_token": access_token
+#     }
+#     return response, 200
         
-@app.get('/logout')
-@cross_origin(supports_credentials=True)
-def logout():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+# @app.get('/logout')
+# @cross_origin(supports_credentials=True)
+# def logout():
+#     session_id = request.headers.get("Session_ID")
+#     user_data = check_session(session_id)
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+#     if user_data == False:
+#         return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
     
-    if "user_id" in user_data:
-        updated_session = Sessions_db.update_session(user_data={})
-        return jsonify({"message": "Logged out successfully", "status": "success"}), 200 # Return to login
-    else:
-        return jsonify({"message": "You are not logged in!", "status": "danger"}), 400
+#     if "user_id" in user_data:
+#         updated_session = Sessions_db.update_session(user_data={})
+#         return jsonify({"message": "Logged out successfully", "status": "success"}), 200 # Return to login
+#     else:
+#         return jsonify({"message": "You are not logged in!", "status": "danger"}), 400
 
-@app.get('/forgot/password')
-@cross_origin(supports_credentials=True)
-def forgot_password():
-    session["confirmed"]="false" # To forgot password page
-    return jsonify({"status" : "success"})
+# @app.get('/forgot/password')
+# @cross_origin(supports_credentials=True)
+# def forgot_password():
+#     session["confirmed"]="false" # To forgot password page
+#     return jsonify({"status" : "success"})
     
-@app.post('/confirm/credentials')
-def confirm_credentials():
-    status = session.get("confirmed")
+# @app.post('/confirm/credentials')
+# def confirm_credentials():
+#     status = session.get("confirmed")
     
-    if not status:
-        uid = request.json.get("uid")
-        email = request.json.get("email")
-        user = User_db.get_user_by_uid(uid)
+#     if not status:
+#         uid = request.json.get("uid")
+#         email = request.json.get("email")
+#         user = User_db.get_user_by_uid(uid)
         
-        if user:
-            if user["email"]==email:
-                otp = generate.OTP()
-                try:
-                    msg = Message('SSRL password recovery', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
-                    msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
+#         if user:
+#             if user["email"]==email:
+#                 otp = generate.OTP()
+#                 try:
+#                     msg = Message('SSRL password recovery', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
+#                     msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
                     
-                    mail.send(msg)
+#                     mail.send(msg)
                     
-                    session["uid"]=uid
-                    session["otp"]=otp
-                    print(session["otp"])
+#                     session["uid"]=uid
+#                     session["otp"]=otp
+#                     print(session["otp"])
                     
-                    response = {
-                        "message": "Check your email for the OTP",
-                        "otp": otp, #To confirm OTP page
-                        "status" : "success"
-                    }
-                    return jsonify(response), 200
-                except Exception as exp:
-                    response = {
-                        "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
-                        "status": "danger",
-                        "error": str(exp)
-                    }
-                    return jsonify(response), 500
-            else:
-                response = {
-                "message": "Please confirm that the email is correct!",
-                "status": "danger"
-            }
-            return jsonify(response), 403
-        else:
-            response = {
-                    "message": "Please confirm that your username is correct!",
-                    "status": "danger"
-                }
-            return jsonify(response), 403
-    elif status == "true":
-        response = {
-            "message": "Already confirmed.",
-            "status": "info"
-        }
-        return jsonify(response), 400 # Back to login
+#                     response = {
+#                         "message": "Check your email for the OTP",
+#                         "otp": otp, #To confirm OTP page
+#                         "status" : "success"
+#                     }
+#                     return jsonify(response), 200
+#                 except Exception as exp:
+#                     response = {
+#                         "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
+#                         "status": "danger",
+#                         "error": str(exp)
+#                     }
+#                     return jsonify(response), 500
+#             else:
+#                 response = {
+#                 "message": "Please confirm that the email is correct!",
+#                 "status": "danger"
+#             }
+#             return jsonify(response), 403
+#         else:
+#             response = {
+#                     "message": "Please confirm that your username is correct!",
+#                     "status": "danger"
+#                 }
+#             return jsonify(response), 403
+#     elif status == "true":
+#         response = {
+#             "message": "Already confirmed.",
+#             "status": "info"
+#         }
+#         return jsonify(response), 400 # Back to login
     
-@app.post('/confirm/otp')
-def confirm_otp():
-    print(session.permanent)
-    status = session.get("confirmed")
+# @app.post('/confirm/otp')
+# def confirm_otp():
+#     print(session.permanent)
+#     status = session.get("confirmed")
     
-    if not status: 
-        print(str(session))
-        input_otp = request.json.get("otp")
-        otp = session.get("otp")
-        print(otp)
-        if input_otp == otp:
-            session.pop("otp", None)
-            session["confirmed"] = "true"
-            return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 # To change password
-        else:
-            return jsonify({"message": "Invalid OTP!", "status" : "danger"}), 401
-    elif status == "true":
-        return jsonify({"message": "Already confirmed." , "status" : "info"}), 401 # Back to login
+#     if not status: 
+#         print(str(session))
+#         input_otp = request.json.get("otp")
+#         otp = session.get("otp")
+#         print(otp)
+#         if input_otp == otp:
+#             session.pop("otp", None)
+#             session["confirmed"] = "true"
+#             return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 # To change password
+#         else:
+#             return jsonify({"message": "Invalid OTP!", "status" : "danger"}), 401
+#     elif status == "true":
+#         return jsonify({"message": "Already confirmed." , "status" : "info"}), 401 # Back to login
 
-@app.post('/change/password')
-def change_password():
-    new_pwd = request.json.get("new_pwd")
+# @app.post('/change/password')
+# def change_password():
+#     new_pwd = request.json.get("new_pwd")
     
-    # confirm_pwd = request.form.get("confirm_pwd") 
-    # if new_pwd == confirm_pwd: # Confirm in the frontend
+#     # confirm_pwd = request.form.get("confirm_pwd") 
+#     # if new_pwd == confirm_pwd: # Confirm in the frontend
     
-    try: 
-        uid = session.get("uid", None) 
-        hashed_pwd = generate_password_hash(new_pwd)
-        dtls = updatePwd(hashed_pwd)
-        updated = User_db.update_user_profile(uid, dtls)
+#     try: 
+#         uid = session.get("uid", None) 
+#         hashed_pwd = generate_password_hash(new_pwd)
+#         dtls = updatePwd(hashed_pwd)
+#         updated = User_db.update_user_profile(uid, dtls)
             
-        if updated:
-            user_profile = User_db.get_user_by_uid(uid)
-            session["user_uid"] = uid
-            session["user_id"] = str(user_profile["_id"])
-            session["user_role"] = user_profile["role"]
-            session["stack"] = user_profile["stack"]
-            session.pop("uid", None)
-            fullname = user_profile['fullname']
-            response = {
-            "user_profile" : convert_to_json_serializable(user_profile),
-            "message": f"Password changed successfully! Welcome back {fullname}",
-            "status" : "success"
-            }
-            return jsonify(response), 200 # To homepage
-        else:
-            return jsonify({"message": "Unable to change your password! Try again", "status" : "danger"}), 500
-    except Exception as e:
-        print(e)
-        return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
+#         if updated:
+#             user_profile = User_db.get_user_by_uid(uid)
+#             session["user_uid"] = uid
+#             session["user_id"] = str(user_profile["_id"])
+#             session["user_role"] = user_profile["role"]
+#             session["stack"] = user_profile["stack"]
+#             session.pop("uid", None)
+#             fullname = user_profile['fullname']
+#             response = {
+#             "user_profile" : convert_to_json_serializable(user_profile),
+#             "message": f"Password changed successfully! Welcome back {fullname}",
+#             "status" : "success"
+#             }
+#             return jsonify(response), 200 # To homepage
+#         else:
+#             return jsonify({"message": "Unable to change your password! Try again", "status" : "danger"}), 500
+#     except Exception as e:
+#         print(e)
+#         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
 
-@app.get('/home')
-@jwt_required()
-def home():
-    try:
-        uid = get_jwt_identity()
+# @app.get('/home')
+# @jwt_required()
+# def home():
+#     try:
+#         uid = get_jwt_identity()
         
-        user_profile = User_db.get_user_by_uid(uid)
-        if not user_profile:
-            return jsonify({"message": "User not found", "status": "error"}), 404
+#         user_profile = User_db.get_user_by_uid(uid)
+#         if not user_profile:
+#             return jsonify({"message": "User not found", "status": "error"}), 404
         
-        uid = user_profile["uid"]
-        user_role =user_profile["role"]
-        stack = user_profile["stack"]
-        firstname = user_profile["firstname"]
-        avatar = user_profile["avatar"]
-        todos = list(Todos_db.get_todos_by_user_id_limited(uid))
-        # all_todos = list(Todos_db.get_todos_by_user_id(user_id))
+#         uid = user_profile["uid"]
+#         user_role =user_profile["role"]
+#         stack = user_profile["stack"]
+#         firstname = user_profile["firstname"]
+#         avatar = user_profile["avatar"]
+#         todos = list(Todos_db.get_todos_by_user_id_limited(uid))
+#         # all_todos = list(Todos_db.get_todos_by_user_id(user_id))
         
-        reports = list(Report_db.get_by_isMember_limited(uid))
-        requests = list(Request_db.get_by_isMember_limited(uid))
-        notifications = list(Notifications.get_by_isMember_limited(uid))
+#         reports = list(Report_db.get_by_isMember_limited(uid))
+#         requests = list(Request_db.get_by_isMember_limited(uid))
+#         notifications = list(Notifications.get_by_isMember_limited(uid))
             
-        if user_role=="Admin":
-            projects = list(Project_db.get_all_limited())
-        elif user_role == "Lead":
-            projects = list(Project_db.get_by_stack_limited(stack))
-        else: projects = list(Project_db.get_by_isMember_limited(uid))
+#         if user_role=="Admin":
+#             projects = list(Project_db.get_all_limited())
+#         elif user_role == "Lead":
+#             projects = list(Project_db.get_by_stack_limited(stack))
+#         else: projects = list(Project_db.get_by_isMember_limited(uid))
             
-        response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "stack": stack, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"})
+#         response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "stack": stack, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"})
             
-        return jsonify(response), 200
+#         return jsonify(response), 200
     
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+#     except Exception as e:
+#         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
 
-@app.get('/view/members') #Personnel tab 
-@jwt_required()
-def view_members():
-    try:
-        uid = get_jwt_identity()
-        user = User_db.get_user_by_uid(uid)
-        if not user:
-            return jsonify({'message': 'User not found', 'status': 'error'}), 404
+# @app.get('/view/members') #Personnel tab 
+# @jwt_required()
+# def view_members():
+#     try:
+#         uid = get_jwt_identity()
+#         user = User_db.get_user_by_uid(uid)
+#         if not user:
+#             return jsonify({'message': 'User not found', 'status': 'error'}), 404
         
         
-        admins = list(User_db.get_user_by_role(role = "Admin"))
-        leads = list(User_db.get_user_by_role(role = "Lead"))
-        interns = list(User_db.get_user_by_role(role="Intern"))
+#         admins = list(User_db.get_user_by_role(role = "Admin"))
+#         leads = list(User_db.get_user_by_role(role = "Lead"))
+#         interns = list(User_db.get_user_by_role(role="Intern"))
         
-        softlead = [lead for lead in leads if lead['stack'] == "Software"]
-        hardlead = [lead for lead in leads if lead['stack'] == "Hardware"]
-        softinterns = [intern for intern in interns if intern['stack'] == "Software"]
-        hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
+#         softlead = [lead for lead in leads if lead['stack'] == "Software"]
+#         hardlead = [lead for lead in leads if lead['stack'] == "Hardware"]
+#         softinterns = [intern for intern in interns if intern['stack'] == "Software"]
+#         hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
         
-        response = {
-        "admins" : admins,
-        "softleads": softlead,
-        "hardleads": hardlead,
-        "softinterns": softinterns,
-        "hardinterns": hardinterns,
-        "status" : "success"
-        } 
-        return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+#         response = {
+#         "admins" : admins,
+#         "softleads": softlead,
+#         "hardleads": hardlead,
+#         "softinterns": softinterns,
+#         "hardinterns": hardinterns,
+#         "status" : "success"
+#         } 
+#         return jsonify(convert_to_json_serializable(response)), 200
+#     except Exception as e:
+#         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
-@app.get('/get_soft_members') #Personnel tab 
-@jwt_required()
-def get_soft_members():
-    try:
-        leads = list(User_db.get_user_by_role(role = "Lead"))
-        interns = list(User_db.get_user_by_role(role="Intern"))
+# @app.get('/get_soft_members') #Personnel tab 
+# @jwt_required()
+# def get_soft_members():
+#     try:
+#         leads = list(User_db.get_user_by_role(role = "Lead"))
+#         interns = list(User_db.get_user_by_role(role="Intern"))
         
-        softlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Software"]
-        softinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Software"]
+#         softlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Software"]
+#         softinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Software"]
         
-        response = {
-        "members": softlead + softinterns,
-        "status" : "success"
-        } 
-        return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+#         response = {
+#         "members": softlead + softinterns,
+#         "status" : "success"
+#         } 
+#         return jsonify(convert_to_json_serializable(response)), 200
+#     except Exception as e:
+#         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
-@app.get('/get_hard_members') #Personnel tab 
-@jwt_required()
-def get_hard_members():
-    try:
-        leads = list(User_db.get_user_by_role(role = "Lead"))
-        interns = list(User_db.get_user_by_role(role="Intern"))
+# @app.get('/get_hard_members') #Personnel tab 
+# @jwt_required()
+# def get_hard_members():
+#     try:
+#         leads = list(User_db.get_user_by_role(role = "Lead"))
+#         interns = list(User_db.get_user_by_role(role="Intern"))
         
-        hardlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Hardware"]
-        hardinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Hardware"]
+#         hardlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Hardware"]
+#         hardinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Hardware"]
         
-        response = {
-        "members": hardlead + hardinterns,
-        "status" : "success"
-        } 
-        return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+#         response = {
+#         "members": hardlead + hardinterns,
+#         "status" : "success"
+#         } 
+#         return jsonify(convert_to_json_serializable(response)), 200
+#     except Exception as e:
+#         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
 
-@app.get('/show/profile/<requested_id>') #user ID created by database
-def show_user_profile(requested_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        requested_profile = User_db.get_user_by_uid(requested_id)
+# @app.get('/personnel/get/<requested_uid>') #user ID created by database
+# def show_user_profile(requested_uid):
+#     try:
+#         requested_profile = User_db.get_user_by_uid(requested_uid)
         
-        response = {"requested_profile" : requested_profile, "status" : "success" }
-        return jsonify(convert_to_json_serializable(response)), 200
-    else:
-        return jsonify({"message": "You are not logged in!", "status" : "info"}), 401
+#         response = {"requested_profile" : requested_profile, "status" : "success" }
+#         return jsonify(convert_to_json_serializable(response)), 200
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
     
-@app.post('/personnel/admin_create_user')
-@jwt_required()
-@admin_and_lead_role_required
-def create_user():
-    try:
-        data = json.loads(request.form.get('info'))
-        print(data)
-        firstname =data.get("firstname")
-        surname =data.get("lastname")
-        stack =data.get("stack")
-        niche =data.get("niche")
-        role =data.get("role")
-        phone_num =data.get("phone_num")
-        email =data.get("email")
-        mentor_id = "NIL"
-        task_id = "NIL"
-        bio =data.get("bio", "NIL")
-        location = "NIL"
-        bday =data.get("bday", "NIL")
-        now = datetime.now().strftime
-        month = now("%B")
-        year =  now("%Y")
-        datetime_created = "{0}, {1}".format(month, year)
-        fullname = "{0} {1}".format(surname, firstname)
-        pwd = generate.password()
-        hashed_pwd = generate_password_hash(pwd)
-        uid = generate.user_id(firstname)
+# @app.post('/personnel/admin_create_user')
+# @jwt_required()
+# @admin_and_lead_role_required
+# def create_user():
+#     try:
+#         data = json.loads(request.form.get('info'))
+#         print(data)
+#         firstname =data.get("firstname")
+#         surname =data.get("lastname")
+#         stack =data.get("stack")
+#         niche =data.get("niche")
+#         role =data.get("role")
+#         phone_num =data.get("phone_num")
+#         email =data.get("email")
+#         mentor_id = "NIL"
+#         task_id = "NIL"
+#         bio =data.get("bio", "NIL")
+#         location = "NIL"
+#         bday =data.get("bday", "NIL")
+#         now = datetime.now().strftime
+#         month = now("%B")
+#         year =  now("%Y")
+#         datetime_created = "{0}, {1}".format(month, year)
+#         fullname = "{0} {1}".format(surname, firstname)
+#         pwd = generate.password()
+#         hashed_pwd = generate_password_hash(pwd)
+#         uid = generate.user_id(firstname)
+#         avatar_url = 'NIL'
         
-        avatar = request.files.get("avatar", None)
-        avatar_msg = ''
-        if avatar :
-            if not allowed_file(avatar.filename):
-                return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
+#         avatar = request.files.get("avatar", None)
+#         avatar_msg = ''
+#         if avatar :
+#             if not allowed_file(avatar.filename):
+#                 return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
             
-            if len(avatar.read()) > 500 * 1024:
-                return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
+#             if len(avatar.read()) > 500 * 1024:
+#                 return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
             
-            avatar.seek(0)
+#             avatar.seek(0)
             
-            try:
-                upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
+#             try:
+#                 upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
                 
-                if not upload_result:
-                    avatar_msg = "Avatar upload failed"
+#                 if not upload_result:
+#                     avatar_msg = "Avatar upload failed"
                     
-                avatar_msg = ''
-                avatar_url = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
+#                 avatar_msg = ''
+#                 avatar_url = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
                 
-            except Exception as e:
-                return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500
+#             except Exception as e:
+#                 return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500
         
         
-        user = User(firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar_url, task_id, bio, location, bday, datetime_created)
+#         user = User(firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar_url, task_id, bio, location, bday, datetime_created)
         
-        user_id= User_db.create_user(user)
-        if not user_id:
-            return jsonify({"message": "Unable to create user at the moment. Please try again", "status" : "danger"}), 500
+#         user_id= User_db.create_user(user)
+#         if not user_id:
+#             return jsonify({"message": "Unable to create user at the moment. Please try again", "status" : "danger"}), 500
         
-        # try:
-        #     msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
-        #     msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
+#         try:
+#             msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
+#             msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
             
-        #     mail.send(msg)
+#             mail.send(msg)
         
+#             response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
             
-        #     response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
-            
-        #     return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
-        # except Exception as e:
-        #     print(e)
-        #     return jsonify({"message": "Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection.", "status" : "danger"}), 500
+#             return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
+#         except Exception as e:
+#             print(e)
         
-        response = convert_to_json_serializable({"message" : f"user {uid} created successfully. {avatar_msg}", "user_id" : str(user_id), "status" : "success"})
-        return jsonify(response)
+#         response = convert_to_json_serializable({"message" : f"user {uid} created successfully. {avatar_msg}", "user_id" : str(user_id), "status" : "success"})
+#         return jsonify(response)
         
-    except Exception as e:
-        print(e)
-        return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "danger"}), 500
+#     except Exception as e:
+#         print(e)
+#         return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "danger"}), 500
     
-@app.get('/view/profile/me')
-def view_profile_me():
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+# @app.get('/view/profile/me')
+# def view_profile_me():
+#     session_id = request.headers.get("Session_ID")
+#     user_data = check_session(session_id)
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
+#     if user_data == False:
+#         return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
     
-    if "user_id" in user_data:
-        user_id = user_data["user_id"]
-        user_profile = User_db.get_user_by_oid(user_id)
-        response = {"user_profile" : user_profile, "status" : "success"}
-        return jsonify(convert_to_json_serializable(response)), 200 
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
+#     if "user_id" in user_data:
+#         user_id = user_data["user_id"]
+#         user_profile = User_db.get_user_by_oid(user_id)
+#         response = {"user_profile" : user_profile, "status" : "success"}
+#         return jsonify(convert_to_json_serializable(response)), 200 
+#     else:
+#         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.patch('/user/edit/profile') #Send defaultvalues with request body
-def user_edit_profile(): 
-    if "user_id" in session:
-        user_id = session["user_id"]
+# @app.patch('/user/edit/profile') #Send defaultvalues with request body
+# def user_edit_profile(): 
+#     if "user_id" in session:
+#         user_id = session["user_id"]
         
-        if 'avatar' not in request.files: avatar = None
-        else: avatar = request.files['avatar']
+#         if 'avatar' not in request.files: avatar = None
+#         else: avatar = request.files['avatar']
         
-        phone_num = request.json.get("phone_num")
-        bio = request.json.get("bio")
-        location = request.json.get("location")
-        bday = request.json.get("bday")
-        email = request.json.get("email")
-        if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
-            try: 
-                uploaded = upload(avatar, folder="smart_app/avatars", resource_type="image")
-                app.logger.info(uploaded)
-                if "secure_url" in uploaded:
-                    filename = uploaded["secure_url"]
-                    dtls = updateUser(filename, phone_num, bio, location, bday, email)
+#         phone_num = request.json.get("phone_num")
+#         bio = request.json.get("bio")
+#         location = request.json.get("location")
+#         bday = request.json.get("bday")
+#         email = request.json.get("email")
+#         if avatar and AllowedExtension.images(secure_filename(avatar.filename)):
+#             try: 
+#                 uploaded = upload(avatar, folder="smart_app/avatars", resource_type="image")
+#                 app.logger.info(uploaded)
+#                 if "secure_url" in uploaded:
+#                     filename = uploaded["secure_url"]
+#                     dtls = {filename, phone_num, bio, location, bday, email}
                     
-                    updated = User_db.update_user_profile_by_oid(user_id, dtls)
+#                     updated = User_db.update_user_profile_by_oid(user_id, dtls)
                 
-                    if updated:
-                        return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
-                    else:
-                        return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
-                else:
-                    return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
-            except:
-                return jsonify({"message": "image upload error!", "status" : "danger"}), 500
-        else:
-            user_profile = User_db.get_user_by_oid(user_id)
-            filename = user_profile["avatar"]
-            dtls = updateUser(filename, phone_num, bio, location, bday, email)
+#                     if updated:
+#                         return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
+#                     else:
+#                         return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
+#                 else:
+#                     return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
+#             except:
+#                 return jsonify({"message": "image upload error!", "status" : "danger"}), 500
+#         else:
+#             user_profile = User_db.get_user_by_oid(user_id)
+#             filename = user_profile["avatar"]
+#             dtls = {filename, phone_num, bio, location, bday, email}
             
-            updated = User_db.update_user_profile_by_oid(user_id, dtls)
+#             updated = User_db.update_user_profile_by_oid(user_id, dtls)
             
-            if updated:
-                return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
-            else:
-                return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
+#             if updated:
+#                 return jsonify({"message": "profile updated successfully", "status" : "success"}), 200
+#             else:
+#                 return jsonify({"message": "profile updated unsuccessful", "status" : "danger"}), 403
+#     else:
+#         return jsonify({"message": "You are not logged in", "status" : "info"}), 403 #To login page
 
-@app.patch('/personnel/admin_edit/<edit_id>')
-@jwt_required()
-@admin_and_lead_role_required
-def admin_edit_profile(edit_id):
-    try:
-        data = json.loads(request.form.get('info'))
-        print(data)
+# @app.patch('/personnel/admin_edit/<edit_id>')
+# @jwt_required()
+# @admin_and_lead_role_required
+# def admin_edit_profile(edit_id):
+#     try:
+#         data = json.loads(request.form.get('info'))
+#         print(data)
         
-        firstname =data.get("firstname")
-        surname =data.get("surname")
-        avatar = request.files.get("avatar")
-        print(avatar)
-        data["fullname"] = "{0} {1}".format(surname, firstname)
-        avatar_msg = ''
+#         firstname =data.get("firstname")
+#         surname =data.get("surname")
+#         avatar = request.files.get("avatar")
+#         print(avatar)
+#         data["fullname"] = "{0} {1}".format(surname, firstname)
+#         avatar_msg = ''
         
-        edit_profile = User_db.get_user_by_uid(edit_id)
-        if not edit_profile:
-            return jsonify({"message": "User not found", "status": "error"}), 404
+#         edit_profile = User_db.get_user_by_uid(edit_id)
+#         if not edit_profile:
+#             return jsonify({"message": "User not found", "status": "error"}), 404
         
-        if avatar:
-            if not allowed_file(avatar.filename):
-                return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
+#         if avatar:
+#             if not allowed_file(avatar.filename):
+#                 return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
             
-            if len(avatar.read()) > 500 * 1024:
-                return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
+#             if len(avatar.read()) > 500 * 1024:
+#                 return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
             
-            avatar.seek(0)
+#             avatar.seek(0)
             
-            try:
-                upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
+#             try:
+#                 upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
                 
-                if not upload_result:
-                    avatar_msg = "Avatar upload failed"
+#                 if not upload_result:
+#                     avatar_msg = "Avatar upload failed"
                     
-                avatar_msg = ''
-                avatar_url = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
-                print(avatar_url)
-                data['avatar'] = avatar_url
+#                 avatar_msg = ''
+#                 avatar_url = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
+#                 print(avatar_url)
+#                 data['avatar'] = avatar_url
                 
-            except Exception as e:
-                return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500    
+#             except Exception as e:
+#                 return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500    
         
-        edited = User_db.update_user(edit_id, data)
-        if not edited['success']:
-            return jsonify({"message": f"Profile update unsuccessful: {edited['error']}", "status": "error"}), 500
+#         edited = User_db.update_user(edit_id, data)
+#         if not edited['success']:
+#             return jsonify({"message": f"Profile update unsuccessful: {edited['error']}", "status": "error"}), 500
         
-        return jsonify({"message": f"Profile updated successfully. {avatar_msg}", "status": "success"}), 200
+#         return jsonify({"message": f"Profile updated successfully. {avatar_msg}", "status": "success"}), 200
     
-    except Exception as e:
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+#     except Exception as e:
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
     
-     # try:
-        #     msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [edit_profile["email"]])
-        #     msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
+#      # try:
+#         #     msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [edit_profile["email"]])
+#         #     msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
             
-        #     mail.send(msg)
+#         #     mail.send(msg)
             
-        #     updated = User_db.update_user_profile_by_oid(oid, dtls)
-        #     if updated:
-        #         flash("Profile updated successful!", "success")
-        #         return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
-        #     else:
-        #         flash("profile update undsuccessful!", "danger")
-        #         return redirect(url_for('view_members'))
-        # except: 
-        #     flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
-        #     return redirect(url_for('view_members'))
+#         #     updated = User_db.update_user_profile_by_oid(oid, dtls)
+#         #     if updated:
+#         #         flash("Profile updated successful!", "success")
+#         #         return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
+#         #     else:
+#         #         flash("profile update undsuccessful!", "danger")
+#         #         return redirect(url_for('view_members'))
+#         # except: 
+#         #     flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
+#         #     return redirect(url_for('view_members'))
     
    
         
-    # return jsonify({"message": "Something went wrong. Please try again", "status" : "danger"}), 500
+#     # return jsonify({"message": "Something went wrong. Please try again", "status" : "danger"}), 500
             
-@app.patch('/add_lead/<intern_uid>') 
-@jwt_required()
-@admin_and_lead_role_required
-def admin_add_lead(intern_uid):
-    try:
-        stack = User_db.get_user_by_uid(intern_uid)["stack"]
-        user_role = get_jwt()['user_role']
+# @app.patch('/add_lead/<intern_uid>') 
+# @jwt_required()
+# @admin_and_lead_role_required
+# def admin_add_lead(intern_uid):
+#     try:
+#         stack = User_db.get_user_by_uid(intern_uid)["stack"]
+#         dtls = {
+#             "role": "Lead"
+#         }
+#         updated = User_db.update_dtl(intern_uid, dtls)
+#         if updated:
+#             return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
         
-        if user_role == "Admin" or user_role == "Lead":
-            dtls = {
-                "role": "Lead"
-            }
-            updated = User_db.update_user_role(intern_uid, dtls)
-            if updated:
-                return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
-            else:
-                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
-        else:
-            print(e)
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401  
+#     except Exception as e:  
+#             return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+   
+# @app.patch('/remove_lead/<intern_uid>') 
+# @jwt_required()
+# @admin_and_lead_role_required
+# def admin_remove_lead(intern_uid):
+#     try:
+#         stack = User_db.get_user_by_uid(intern_uid)["stack"]
         
-    except Exception as e:  
-            return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+#         dtls = {
+#             "role": "Intern"
+#         }
+#         updated = User_db.update_dtl(intern_uid, dtls)
+#         if updated:
+#             return jsonify({"message": f"You've successfully removed {intern_uid} as {stack} lead", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+    
+# @app.patch('/add_admin/<intern_uid>') 
+# @jwt_required()
+# @admin_role_required
+# def admin_add_admin(intern_uid):
+#     try:
+#         dtls = {
+#             "role": "Admin"
+#         }
+#         updated = User_db.update_dtl(intern_uid, dtls)
+#         if updated:
+#             return jsonify({"message": f"You've successfully made {intern_uid} an Admin", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+        
+# @app.patch('/remove_admin/<intern_uid>')
+# @jwt_required()
+# @admin_role_required
+# def admin_remove_admin(intern_uid):
+#     try:
+#         dtls = {
+#             "role": "Intern"
+#         }
+#         updated = User_db.update_dtl(intern_uid, dtls)
+#         if updated:
+#             return jsonify({"message": f"You've successfully removed {intern_uid} from an Admin", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
 
-    
-    
-@app.patch('/remove_lead/<intern_uid>') 
-def admin_remove_lead(intern_uid):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        stack = User_db.get_user_by_uid(intern_uid)["stack"]
-        user_role = user_data["user_role"]
+# @app.patch('/admin/delete_user/<requested_id>')
+# @jwt_required()
+# @admin_role_required
+# def admin_delete_user(requested_id):
+#     try:
+#         dtls = {"deleted": "True"}
+#         deleted = User_db.update_dtl(requested_id, dtls)
         
-        if user_role == "Admin" or user_role == "Lead":
-            dtls = {
-                "role": "Intern"
-            }
-            updated = User_db.update_user_role(intern_uid, dtls)
-            if updated:
-                return jsonify({"message": f"You've successfully removed {intern_uid} as {stack} lead", "status" : "success"}), 200
-            else:
-                return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
+#         if deleted:
+#             return jsonify({"message": f"User {requested_id} deleted successfully!", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": f"The request to delete {requested_id} was not successful!", "status" : "danger"}), 400
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
     
-@app.patch('/add_admin/<intern_uid>') # Multiple leads
-def admin_add_admin(intern_uid):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        user_role = user_data["user_role"]
-        
-        if user_role == "Admin":
-            dtls = {
-                "role": "Admin"
-            }
-            updated = User_db.update_user_role(intern_uid, dtls)
-            if updated:
-                return jsonify({"message": f"You've successfully made {intern_uid} an Admin", "status" : "success"}), 200
-            else:
-                return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
-    
-@app.patch('/remove_admin/<intern_uid>')
-def admin_remove_admin(intern_uid):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again 1.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        user_role = user_data["user_role"]
-        
-        if user_role == "Admin":
-            dtls = {
-                "role": "Intern"
-            }
-            updated = User_db.update_user_role(intern_uid, dtls)
-            if updated:
-                return jsonify({"message": f"You've successfully removed {intern_uid} from an Admin", "status" : "success"}), 200
-            else:
-                return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401        
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "danger"}), 401
+# @app.patch('/admin/suspend_user/<requested_id>')
+# @jwt_required()
+# @admin_role_required
+# def admin_suspend_user(requested_id):
+#     try:
+#         dtls = {"suspended": "True"}
+#         deleted = User_db.update_dtl(requested_id, dtls)
 
-@app.patch('/admin/delete_user/<requested_id>')
-def admin_delete_user(requested_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
+#         if deleted:
+#             return jsonify({"message": f"User {requested_id} suspended successfully!", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": f"The request to suspend {requested_id} was not successful!", "status" : "danger"}), 400
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
     
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        user_role = user_data["user_role"]
+# @app.patch('/admin/unsuspend_user/<requested_id>')
+# @jwt_required()
+# @admin_role_required
+# def admin_unsuspend_user(requested_id):
+#     try:
+#         dtls = {"suspended": "False"}
+#         deleted = User_db.update_dtl(requested_id, dtls)
         
-        if user_role == "Admin":
-            dtls = {"deleted": "True"}
-            deleted = User_db.delete_user(requested_id, dtls)
-            
-            if deleted:
-                return jsonify({"message": f"User {requested_id} deleted successfully!", "status" : "success"}), 200
-            else:
-                return jsonify({"message": f"The request to delete {requested_id} was not successful!", "status" : "danger"}), 400
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 401 
-    
-@app.patch('/admin/suspend_user/<requested_id>')
-def admin_suspend_user(requested_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        user_role = user_data["user_role"]
-        
-        if user_role == "Admin":
-            dtls = {"suspended": "True"}
-            deleted = User_db.delete_user(requested_id, dtls)
-            
-            if deleted:
-                return jsonify({"message": f"User {requested_id} suspended successfully!", "status" : "success"}), 200
-            else:
-                return jsonify({"message": f"The request to suspend {requested_id} was not successful!", "status" : "danger"}), 400
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 401
-    
-@app.patch('/admin/unsuspend_user/<requested_id>')
-def admin_unsuspend_user(requested_id):
-    session_id = request.headers.get("Session_ID")
-    user_data = check_session(session_id)
-    
-    if user_data == False:
-        return jsonify({"message": "Something went wrong. Please try logging in again.", "status": "error"}), 401 
-    
-    if "user_id" in user_data:
-        user_role = user_data["user_role"]
-        
-        if user_role == "Admin":
-            dtls = {"suspended": "False"}
-            deleted = User_db.delete_user(requested_id, dtls)
-            
-            if deleted:
-                return jsonify({"message": f"User {requested_id} unsuspended successfully!", "status" : "success"}), 200
-            else:
-                return jsonify({"message": f"The request to delunsuspend {requested_id} was not successful!", "status" : "danger"}), 400
-        else:
-            return jsonify({"message": "Unauthorized action. Please contact the admin.", "status" : "info"}), 401       
-    else:
-        return jsonify({"message": "You are not logged in", "status" : "info"}), 401
+#         if deleted:
+#             return jsonify({"message": f"User {requested_id} unsuspended successfully!", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": f"The request to delunsuspend {requested_id} was not successful!", "status" : "danger"}), 400
+#     except Exception as e:  
+#         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
     
 @app.get('/view/equipments')
 def view_all_eqpt():
@@ -1901,42 +1832,6 @@ def delete_request(request_id):
     else:
          return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
   
-@app.post('/submissions/submit/report')
-def post_report_form():
-    
-    if "user_id" in session:
-        user_id = session["user_id"]
-        uid = session["user_uid"]
-        
-        title = request.form.get("title")
-        report_no = request.form.get("report_no") #Why?
-        content = request.form.get("content")
-        recipient = request.form.get("recipient") #Limit report recepients
-        sender = {
-            "_id": user_id,
-            "uid": uid  
-                  
-        }
-        now = datetime.now().strftime
-        month = now("%B")
-        date = now("%d")
-        year = now("%Y")
-        date_submitted = "{0} {1}, {2}".format(month, date, year)
-        status = "Submitted"
-        date_time = datetime.now()
-        
-        report = Report(title, report_no, content, recipient, sender, date_submitted, status, date_time)
-        report_id = Report_db.insert_new(report)
-        
-        # flash("Report submitted successfully!", "success")
-        # return redirect(url_for('view_report', report_id=report_id))
-        return jsonify({"message" : "Report submitted successfully!", report_id:report_id, "status" : "success"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-    
-
 @app.post('/report/create')
 @jwt_required()
 def create_report():
@@ -1947,19 +1842,21 @@ def create_report():
     receiver = data.get('receiver')
     sender = data.get('sender')
     
+    sender_avatar = User_db.get_by_uid(sender)['avatar']
+    
     if report_type == "activity":
         duration = data.get('duration')
         completed = data.get('completed')
         ongoing = data.get('ongoing')
         next = data.get('next')
-        activityreport = ActivityReport(title=title, stack=stack, receiver=receiver, sender=sender, duration=duration, completed=completed, ongoing=ongoing, next=next, report_type=report_type)
+        report = ActivityReport(title=title, stack=stack, receiver=receiver, sender=sender, duration=duration, completed=completed, ongoing=ongoing, next=next, report_type=report_type, avatar=sender_avatar)
     elif report_type == "project":
         summary = data.get('summary')   
-        projectsreport = ProjectReport(title=title, stack=stack, summary=summary, report_type=report_type, receiver=receiver, sender=sender) 
+        report = ProjectReport(title=title, stack=stack, summary=summary, report_type=report_type, receiver=receiver, sender=sender,  avatar=sender_avatar) 
     else:
         return jsonify({"message": "Invalid report type", "status": "error"}), 400
     
-    report_id = Report_db.insert_new(report_type == 'activity' and activityreport or projectsreport)
+    report_id = Report_db.insert_new(report)
     
     if report_id:
         return jsonify({"message": "Report created successfully!", "status": "success"}), 200
@@ -1973,7 +1870,6 @@ def get_all_reports():
         user_uid = get_jwt_identity()
         info = get_jwt()
         user_role = info['user_role']
-        # user_role = 'Intern'
         stack = info['stack']
         
         if not user_role or not stack:
@@ -2007,44 +1903,6 @@ def get_one(report_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
         
-@app.get('/report/completed/<report_id>') # Remove
-def mark_report_completed(report_id):
-    
-    if "user_id" in session:
-        marked = Report_db.mark_completed(report_id)
-
-        if marked: 
-            # flash('Report marked completed',"success")
-            # return redirect(url_for('view_report', report_id=report_id))
-            return jsonify({"message" : "Report marked completed", "status" : "success"})
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-    
-@app.get('/report/incomplete/<report_id>')  # Remove
-def mark_report_incomplete(report_id):
-    
-    if "user_id" in session:
-        marked = Report_db.mark_incomplete(report_id)
-
-        if marked: 
-            # flash('Report marked incomplete',"success")
-            # return redirect(url_for('view_report', report_id=report_id))
-            return jsonify({"message" : "Report marked incomplete'", "status" : "success"})
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-    
 @app.post('/report/give_feedback/<report_id>') 
 @jwt_required()
 def give_feedback(report_id):
@@ -2066,46 +1924,6 @@ def give_feedback(report_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@app.post('/report/edit/<report_id>')
-def edit_report(report_id):
-    
-    if "user_id" in session:
-        user_id = session["user_id"]
-        uid = session["user_uid"]
-        
-        title = request.form.get("title")
-        report_no = request.form.get("report_no")
-        content = request.form.get("content")
-        recipient = request.form.get("recipient")
-        sender = {
-            "_id": user_id,
-            "uid": uid  
-                  
-        }
-        now = datetime.now().strftime
-        month = now("%B")
-        date = now("%d")
-        year = now("%Y")
-        date_submitted = "{0} {1}, {2}".format(month, date, year)
-        status = "Submitted"
-        date_time = datetime.now()
-        
-        dtls = Report(title, report_no, content, recipient, sender, date_submitted, status, date_time)
-        updated = Report_db.update_report_dtls(report_id, dtls)
-        
-        if updated:
-            # flash("Report edited successfully!", "success")
-            # return redirect(url_for('view_report', report_id=report_id))
-            return jsonify({"message" : "Report edited successfully!", "status" : "success"})
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
-
 @app.delete('/report/delete/<report_id>')
 @jwt_required()
 @admin_and_lead_role_required
@@ -2137,7 +1955,7 @@ def add_doc(report_id):
             return jsonify({"message" : 'Invalid file format! Try again', "status" : "error"}), 401
         
         try:
-            uploaded = upload_file_func(doc, "SSRL_Lab_App/report_submissions/", filename)
+            uploaded = upload_func(doc, "SSRL_Lab_App/report_submissions/")
             if not uploaded:
                 return jsonify({"message" : 'File upload error! Try again', "status" : "danger"}), 500
             
@@ -2175,370 +1993,386 @@ def add_link(report_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@app.post('/project/create') 
-@jwt_required()
-def create_project():
-    try:
-        uid = get_jwt_identity()
+# @app.post('/project/create') 
+# @jwt_required()
+# def create_project():
+#     try:
+#         uid = get_jwt_identity()
         
-        data = request.json
-        name = data.get("name")
-        description = data.get("description")
-        objectives = data.get("objectives") 
-        leads = data.get("leads")
-        team_members = data.get("team_members") 
-        stack = data.get("stack")
-        deadline = data.get("deadline")
+#         data = request.json
+#         name = data.get("name")
+#         description = data.get("description")
+#         objectives = data.get("objectives") 
+#         leads = data.get("leads")
+#         team_members = data.get("team_members") 
+#         stack = data.get("stack")
+#         deadline = data.get("deadline")
         
-        team_avatars = []
+#         team_avatars = []
         
-        for lead in leads:
-            profile = User_db.get_user_by_uid(lead['id'])
-            if not profile:
-                continue
-            else:
-                avatar = profile['avatar']
-                if avatar != 'NIL':
-                    team_avatars.append(avatar['secure_url'])
-                else: team_avatars.append('NIL')
+#         for lead in leads:
+#             profile = User_db.get_user_by_uid(lead['id'])
+#             if not profile:
+#                 continue
+#             else:
+#                 avatar = profile['avatar']
+#                 if avatar != 'NIL':
+#                     team_avatars.append(avatar['secure_url'])
+#                 else: team_avatars.append('NIL')
                     
-        for member in team_members:
-            profile = User_db.get_user_by_uid(member['id'])
-            if not profile:
-                continue
-            else:
-                avatar = profile['avatar']
-                if avatar != 'NIL':
-                    team_avatars.append(avatar['secure_url'])
-                else: team_avatars.append('NIL')
+#         for member in team_members:
+#             profile = User_db.get_user_by_uid(member['id'])
+#             if not profile:
+#                 continue
+#             else:
+#                 avatar = profile['avatar']
+#                 if avatar != 'NIL':
+#                     team_avatars.append(avatar['secure_url'])
+#                 else: team_avatars.append('NIL')
             
-        createdBy = uid
-        submissions = {"docs": [], "links": []} 
+#         createdBy = uid
+#         submissions = {"docs": [], "links": []} 
            
-        date_created = datetime.now()
-        project_status = "Uncompleted"
+#         date_created = datetime.now()
+#         project_status = "Uncompleted"
         
-        project = Project(name, description, objectives, leads, team_members, team_avatars, stack, createdBy, project_status, submissions, date_created, deadline) #Removed recipient_dtls
-        project_id = Project_db.insert_new(project)
-        # project_id = None
+#         project = Project(name, description, objectives, leads, team_members, team_avatars, stack, createdBy, project_status, submissions, date_created, deadline) #Removed recipient_dtls
+#         project_id = Project_db.insert_new(project)
+#         # project_id = None
         
-        not_title = "New Project"
-        not_receivers = leads + team_members
-        not_type = "Project"
-        not_message = f"You have been added to a new project {name}. Check it out in your projects tab!"
-        notification = Notification(not_title, not_receivers, not_type, not_message)
+#         not_title = "New Project"
+#         not_receivers = leads + team_members
+#         not_type = "Project"
+#         not_message = f"You have been added to a new project {name}. Check it out in your projects tab!"
+#         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        if project_id:
-            response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
-            Notifications.send_notification(notification)
-        else:
-            response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
-        return(response)
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(error_details)  
-        return {'message': f'An error occurred: {str(e)}', 'status': 'error', "traceback": error_details}, 500
+#         if project_id:
+#             response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
+#             Notifications.send_notification(notification)
+#         else:
+#             response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
+#         return(response)
+#     except Exception as e:
+#         import traceback
+#         error_details = traceback.format_exc()
+#         print(error_details)  
+#         return {'message': f'An error occurred: {str(e)}', 'status': 'error', "traceback": error_details}, 500
 
-@app.get('/project/view/<project_id>')
-def view_project(project_id):
-    try:
-        project = Project_db.get_by_project_id(project_id)
+# @app.get('/project/view/<project_id>')
+# @jwt_required()
+# def view_project(project_id):
+#     try:
+#         project = Project_db.get_by_project_id(project_id)
         
-        if not project:
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+#         if not project:
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
             
-        response = convert_to_json_serializable({"project": project, "status": "success"})
-        return jsonify(response), 200
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+#         response = convert_to_json_serializable({"project": project, "status": "success"})
+#         return jsonify(response), 200
+#     except Exception as e:
+#         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@app.get('/project/get_all')
-@jwt_required()
-def get_all_projects():
-    try:
-        uid = get_jwt_identity()
-        user_role = get_jwt()['user_role']
-        stack = get_jwt()['stack']
+# @app.get('/project/get_all')
+# @jwt_required()
+# def get_all_projects():
+#     try:
+#         uid = get_jwt_identity()
+#         user_role = get_jwt()['user_role']
+#         stack = get_jwt()['stack']
         
-        if user_role=="Admin":
-            projects = list(Project_db.get_all())
-        elif user_role == "Lead":
-            projects = list(Project_db.get_by_stack(stack, uid))
-        else: projects = list(Project_db.get_by_isMember(uid))
+#         if user_role=="Admin":
+#             projects = list(Project_db.get_all())
+#         elif user_role == "Lead":
+#             projects = list(Project_db.get_by_stack(stack, uid))
+#         else: projects = list(Project_db.get_by_isMember(uid))
         
-        response = convert_to_json_serializable({"projects": projects, "status": "success"})
-        return jsonify(response), 200
+#         response = convert_to_json_serializable({"projects": projects, "status": "success"})
+#         return jsonify(response), 200
     
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+#     except Exception as e:
+#         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
   
-@app.patch('/project/completed/<project_id>')
-@jwt_required()
-def mark_project_completed(project_id):
-    try:
-        project = Project_db.get_by_project_id(project_id)
+# @app.patch('/project/completed/<project_id>')
+# @jwt_required()
+# def mark_project_completed(project_id):
+#     try:
+#         project = Project_db.get_by_project_id(project_id)
         
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
-        name = Project_db.get_project_name(project_id)
-        members = Project_db.get_project_members(project_id)
-        members = [member['id'] for member in members]
+#         name = Project_db.get_project_name(project_id)
+#         members = Project_db.get_project_members(project_id)
+#         members = [member['id'] for member in members]
         
-        if (project['status'] == 'Completed'):
-            return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
+#         if (project['status'] == 'Completed'):
+#             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
         
-        marked = Project_db.mark_project(project_id, "Completed")
+#         marked = Project_db.mark_project(project_id, "Completed")
         
-        not_title = "Project Marked as Complete"
-        not_receivers = members
-        not_type = "Project"
-        not_message = f"Project '{name}' has been marked as complete. Check it out in your projects tab!"
-        notification = Notification(not_title, not_receivers, not_type, not_message)
+#         not_title = "Project Marked as Complete"
+#         not_receivers = members
+#         not_type = "Project"
+#         not_message = f"Project '{name}' has been marked as complete. Check it out in your projects tab!"
+#         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        if marked: 
-            Notifications.send_notification(notification)
-            return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+#         if marked: 
+#             Notifications.send_notification(notification)
+#             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
+#         else:
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
         
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+#     except Exception as e:
+#         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@app.patch('/project/incomplete/<project_id>') 
-def mark_project_incomplete(project_id):
-    try:
-        project = Project_db.get_by_project_id(project_id)
+# @app.patch('/project/incomplete/<project_id>') 
+# @jwt_required()
+# def mark_project_incomplete(project_id):
+#     try:
+#         project = Project_db.get_by_project_id(project_id)
         
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
-        name = Project_db.get_project_name(project_id)
-        members = Project_db.get_project_members(project_id)
-        members = [member['id'] for member in members]
+#         name = Project_db.get_project_name(project_id)
+#         members = Project_db.get_project_members(project_id)
+#         members = [member['id'] for member in members]
         
-        if (project['status'] == 'Uncompleted'):
-            return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
+#         if (project['status'] == 'Uncompleted'):
+#             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         
-        marked = Project_db.mark_project(project_id, "Uncompleted")
+#         marked = Project_db.mark_project(project_id, "Uncompleted")
         
-        not_title = "Project Marked as Incomplete"
-        not_receivers = members
-        not_type = "Project"
-        not_message = f"Project '{name}' has been marked as incomplete. Check it out in your projects tab!"
-        notification = Notification(not_title, not_receivers, not_type, not_message)
+#         not_title = "Project Marked as Incomplete"
+#         not_receivers = members
+#         not_type = "Project"
+#         not_message = f"Project '{name}' has been marked as incomplete. Check it out in your projects tab!"
+#         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        if marked: 
-            Notifications.send_notification(notification)
-            return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+#         if marked: 
+#             Notifications.send_notification(notification)
+#             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
+#         else:
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
         
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+#     except Exception as e:
+#         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@app.patch('/project/edit/<project_id>') # Add notifications
-def edit_project(project_id): # Who can edit a project? Name, description, objectives, team_members, leads, deadline
+# @app.patch('/project/edit/<project_id>') # Add notifications
+# @jwt_required()
+# def edit_project(project_id): # Who can edit a project? Name, description, objectives, team_members, leads, deadline
+#     try:
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        
+#         data = request.json
+#         print(data)
+#         # name = data.get("name")
+#         # existing_name = Project_db.existing_project_name(name)
+        
+#         # if existing_name:
+#         #     return jsonify({"message" : f"Project with name '{name}' already exists.", "status": "error"}), 409
+        
+#         updated = Project_db.update_project_dtls(project_id, data)
+#         if updated:
+#             return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        
+#     except Exception as e:
+#         import traceback
+#         print("Traceback:", traceback.format_exc())
+#         return {'message': f'Something went wrong: {str(e)}', 'status': 'error', 'traceback': traceback}, 500
+#         # return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-    if "user_id" in session:
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+# @app.delete('/project/delete/<project_id>')
+# @jwt_required()
+# def delete_project(project_id):
+#     try:
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
-        data = request.json
-        name = data.get("name")
-        existing_name = Project_db.existing_project_name(name)
-        
-        if existing_name:
-            return jsonify({"message" : f"Project with name '{name}' already exists.", "status": "error"}), 409
-        
-        updated = Project_db.update_project_dtls(project_id, data)
-        if updated:
-            return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
-    
-@app.delete('/project/delete/<project_id>')
-def delete_project(project_id):
-    try:
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
-        name = Project_db.get_project_name(project_id)
-        members = Project_db.get_project_members(project_id)
-        members = [member['id'] for member in members]
-        deleted = Project_db.delete_project(project_id, name)
+#         name = Project_db.get_project_name(project_id)
+#         members = Project_db.get_project_members(project_id)
+#         members = [member['id'] for member in members]
+#         deleted = Project_db.delete_project(project_id, name)
             
-        not_title = "Project Deleted"
-        not_receivers = members
-        not_type = "Project"
-        not_message = f"Project '{name}' has been deleted."
-        notification = Notification(not_title, not_receivers, not_type, not_message)
+#         not_title = "Project Deleted"
+#         not_receivers = members
+#         not_type = "Project"
+#         not_message = f"Project '{name}' has been deleted."
+#         notification = Notification(not_title, not_receivers, not_type, not_message)
             
-        if deleted:
-            Notifications.send_notification(notification)
-            return jsonify({"message": "Project deleted successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message": 'The project could not be deleted!', "status" : "danger"}), 500
+#         if deleted:
+#             Notifications.send_notification(notification)
+#             return jsonify({"message": "Project deleted successfully!", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message": 'The project could not be deleted!', "status" : "danger"}), 500
         
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+#     except Exception as e:
+#         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@app.patch('/project/submit_doc/<project_id>') # Check file size and confirm that file of the same metadata does not exist.
-def submit_project_doc(project_id): # Add notification
-    try:
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+# @app.patch('/project/submit_doc/<project_id>') # Check file size and confirm that file of the same metadata does not exist.
+# @jwt_required()
+# def submit_project_doc(project_id): # Add notification
+#     try:
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
-        submission = request.files["file"]
-        filename = secure_filename(submission.filename)
+#         submission = request.files["file"]
+#         filename = secure_filename(submission.filename)
         
-        if submission and AllowedExtension.files(filename):
-            try:
-                uploaded = upload_file(submission, "SSRL_Lab_App/project_submissions/", filename)
+#         if not submission:
+#             return jsonify({"message": "No doc attached", "status": "error"}), 400
+        
+#         if not check_file_size(submission):
+#             return jsonify({"message": "Doc size exceeds 1MB", "status": "error"}), 400
+        
+#         if not AllowedExtension.files(filename):
+#             return jsonify({"message": "Invalid doc type", "status": "error"}), 400                            
+        
+#         try:
+#             uploaded = upload_func(submission, f"SSRL_Lab_App/projects/{project_id}")
+            
+#             if not uploaded:
+#                 return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
 
-                if uploaded:
-                    filepath = uploaded["secure_url"]
-                    project_submission = {"filename": filename, "download_link": filepath, "date_submitted": get_date_now()}
-                    submitted = Project_db.submit_doc(project_id, project_submission)
-                        
-                    if submitted:
-                        return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
-                    else:
-                        return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-            except:
-                return jsonify({"message" : "Couldn't upload your project at the moment! Please make sure you have a strong internet connection.", "status" : "danger"})
-            else:
-                return jsonify({"message" : 'file upload error!', "status" : "danger"}), 500
-        else:
-            return jsonify({"message" : 'Invalid file format! Try again', "status" : "danger"}), 401
-        
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
-    
-@app.patch('/project/submit_link/<project_id>') # Validate link input on frontend
-def submit_project_link(project_id): # Add notification
-    if 'user_id' in session:
-        
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
-        data = request.json
-        title = data.get('title')
-        link = data.get('link')
-        
-        link_submission = {"title": title, "link": link, "date_submitted": get_date_now()}
-        submitted = Project_db.submit_link(project_id, link_submission)
-        
-        if submitted:
-            return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
-
-@app.get('/project/submissions/<project_id>')
-def project_submissions(project_id):
-    
-    if "user_id" in session:
-        
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-    
-        submissions = Project_db.get_project_submissions(project_id)
-        return jsonify({"submissions":submissions, "status" : "success"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-        
-@app.post('/project/send_announcement/<project_id>')
-def send_project_announcement(project_id):
-    
-    if "user_id" in session:
-        
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
-        announcement = request.json.get('announcement')
-        receivers = request.json.get('receivers') # all | leads | team_members
-        
-        all = Project_db.get_project_members(project_id)
-        leads = Project_db.get_project_leads(project_id)
-        team_members = Project_db.get_project_team_members(project_id)
-        
-        if (receivers == "all"):
-            recepient = all
-        elif (receivers == "leads"):
-            recepient = leads
-        else:
-            recepient = team_members
-        
-        not_title = f"New Project Announcement: {Project_db.get_project_name(project_id)}"
-        not_receivers = recepient
-        not_type = "Project"
-        not_message = announcement
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
-        
-        Notifications.send_notification(notification)
-
-        return jsonify({"message": "Announcement made successfully", "status" : "success"}), 200
-
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-    
-@app.get('/project/send/feedback/<project_id>/<id>') # Remove
-def send_feedback(project_id, id):
-    
-    if "user_id" in session:
-        user_id = session["user_id"]
-        user_profile = User_db.get_user_by_oid(user_id)
-        project = Project_db.get_by_project_id(project_id)
-        submissions = project["submissions"]
-        
-        for x in submissions:
-            if x["id"]==id:
-                submission=x
-                break
-        
-        # return render_template('pages/send_feedback.html', user_profile=user_profile, project=project, submission=submission)
-        return ({ user_profile:user_profile, project:project, submission:submission, "status" : "success"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
-    
-@app.post('/submit/feedback/<project_id>/<id>') # Remove
-def submit_feedback(project_id, id):
-    
-    if "user_id" in session:
-        submissions = Project_db.get_by_project_id(project_id)["submissions"]
-        
-        for  x in submissions:
-            if x["id"] == id:
-                x["feedback"] = request.form.get("feedback")
+#             print(uploaded)
+#             project_submission = {"filename": filename, "download_link": uploaded["secure_url"], "date_submitted": datetime.now()}
+#             submitted = Project_db.submit_doc(project_id, project_submission)
                 
-        submitted = Project_db.mark_project(project_id, submissions)
+#             if not submitted:
+#                 return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+            
+#         except Exception as e:
+#             return jsonify({"message" : f"Couldn't upload your project at the moment! {e}", "status" : "danger"}),500
+        
+#         return jsonify({"submission": project_submission, "status" : "success"}), 200
+        
+#     except Exception as e:
+#         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+    
+# @app.patch('/project/submit_link/<project_id>') # Validate link input on frontend
+# def submit_project_link(project_id): # Add notification
+#     if 'user_id' in session:
+        
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        
+#         data = request.json
+#         title = data.get('title')
+#         link = data.get('link')
+        
+#         link_submission = {"title": title, "link": link, "date_submitted": get_date_now()}
+#         submitted = Project_db.submit_link(project_id, link_submission)
+        
+#         if submitted:
+#             return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
+#         else:
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+#     else:
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+
+# @app.get('/project/submissions/<project_id>')
+# def project_submissions(project_id):
+    
+#     if "user_id" in session:
+        
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
+    
+#         submissions = Project_db.get_project_submissions(project_id)
+#         return jsonify({"submissions":submissions, "status" : "success"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+        
+# @app.post('/project/send_announcement/<project_id>')
+# def send_project_announcement(project_id):
+    
+#     if "user_id" in session:
+        
+#         if (not Project_db.project_exists(project_id)):
+#             return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        
+#         announcement = request.json.get('announcement')
+#         receivers = request.json.get('receivers') # all | leads | team_members
+        
+#         all = Project_db.get_project_members(project_id)
+#         leads = Project_db.get_project_leads(project_id)
+#         team_members = Project_db.get_project_team_members(project_id)
+        
+#         if (receivers == "all"):
+#             recepient = all
+#         elif (receivers == "leads"):
+#             recepient = leads
+#         else:
+#             recepient = team_members
+        
+#         not_title = f"New Project Announcement: {Project_db.get_project_name(project_id)}"
+#         not_receivers = recepient
+#         not_type = "Project"
+#         not_message = announcement
+#         not_status = "unread"
+#         not_sentAt = datetime.now()
+#         notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        
+#         Notifications.send_notification(notification)
+
+#         return jsonify({"message": "Announcement made successfully", "status" : "success"}), 200
+
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+    
+# @app.get('/project/send/feedback/<project_id>/<id>') # Remove
+# def send_feedback(project_id, id):
+    
+#     if "user_id" in session:
+#         user_id = session["user_id"]
+#         user_profile = User_db.get_user_by_oid(user_id)
+#         project = Project_db.get_by_project_id(project_id)
+#         submissions = project["submissions"]
+        
+#         for x in submissions:
+#             if x["id"]==id:
+#                 submission=x
+#                 break
+        
+#         # return render_template('pages/send_feedback.html', user_profile=user_profile, project=project, submission=submission)
+#         return ({ user_profile:user_profile, project:project, submission:submission, "status" : "success"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+    
+# @app.post('/submit/feedback/<project_id>/<id>') # Remove
+# def submit_feedback(project_id, id):
+    
+#     if "user_id" in session:
+#         submissions = Project_db.get_by_project_id(project_id)["submissions"]
+        
+#         for  x in submissions:
+#             if x["id"] == id:
+#                 x["feedback"] = request.form.get("feedback")
+                
+#         submitted = Project_db.mark_project(project_id, submissions)
     
 
-        if submitted: 
-            # flash('Feedback sent successfully',"success")
-            # return redirect(url_for('project_submissions', project_id=project_id))
-            return jsonify({"message" : 'Feedback sent successfully', "status" : "success"})
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#         if submitted: 
+#             # flash('Feedback sent successfully',"success")
+#             # return redirect(url_for('project_submissions', project_id=project_id))
+#             return jsonify({"message" : 'Feedback sent successfully', "status" : "success"})
+#         else:
+#             # flash('An error occurred! Try again', "danger")
+#             # return redirect(url_for('view_request', request_id=request_id))
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
   
 @app.get('/project/submissions/download/<project_id>/<id>')
 def download_project_submissions(project_id, id):
@@ -2934,7 +2768,7 @@ def testImage():
     print(image.filename, image.content_type)
  
     try:
-        upload_result = upload_file_func(image, folder='hospital/logo', filename=image.filename)
+        upload_result = upload_func(image, folder='hospital/logo', filename=image.filename)
         print(upload_result)
         image_url = upload_result['secure_url']
     except Exception as e:
@@ -2951,7 +2785,4 @@ def testImage():
     
     return jsonify({'message': 'Image uploaded successfully', 'status': 'success'}), 200
 
-
-if __name__ == '__main__':
-    app.run(debug=True)
 

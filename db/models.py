@@ -28,14 +28,8 @@ class Userdb:
     def get_user_by_oid(self, user_id):
         return self.collection.find_one({"_id": ObjectId(user_id)})
     
-    def update_user_profile(self, user_id, dtls):
-        return self.collection.update_one({"uid":user_id},{"$set":dtls.__dict__}).modified_count>0
-    
-    def update_user_role(self, user_id, dtls):
-        return self.collection.update_one({"uid":user_id},{"$set":dtls}).modified_count>0
-    
-    def update_user_profile_by_oid(self, _id, dtls):
-        return self.collection.update_one({"_id": ObjectId(_id)},{"$set":dtls.__dict__}).modified_count>0
+    def update_dtl(self, user_id, dtls):
+        return self.collection.update_one({"uid":user_id},{"$set": dtls}).modified_count>0
     
     def delete_user(self, id, dtls):
         return self.collection.update_one({"uid":id}, {"$set": dtls}).modified_count>0
@@ -61,6 +55,7 @@ class Userdb:
     def update_user(self, user_id, dtls):
         try:
             result = self.collection.update_one({"uid": user_id}, {"$set": dtls})
+            
             if result.matched_count == 0:
                 return {"success": False, "error": "No user found with the given UID"}
             if result.modified_count == 0:
@@ -206,7 +201,6 @@ class Requestdb:
     
     def decline_request(self,request_id):
         return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":{"status":"Declined"}}).modified_count>0
- 
     
 class Reportdb:
     def __init__(self) -> None:
@@ -274,22 +268,22 @@ class Projectdb:
         self.collection = Projects
         
     def get_all(self):
-        return self.collection.find({"deleted":"False"}).sort("date_created")
+        return self.collection.find({'softdeleted_at': None}).sort("date_created")
     
     def get_all_limited(self):
-        return self.collection.find({"deleted":"False"}).sort("date_created").limit(4)
+        return self.collection.find({'softdeleted_at': None}).sort("date_created").limit(4)
     
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
-               {'leads': uid},
+               {'leads': uid,},
                {'team_members': uid}
-           ], "deleted":"False"}).limit(4)
+           ], 'softdeleted_at': None}).limit(4)
     
     def get_by_isMember(self, uid):
         return self.collection.find({'$or': [
                {'leads': uid},
                {'team_members': uid}
-           ], "deleted":"False"})
+           ], 'softdeleted_at': None})
     
     def insert_new(self, request):
         existing_project = self.collection.find_one({"name": request.name})
@@ -329,9 +323,6 @@ class Projectdb:
     def get_by_project_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
     
-    def get_submitted_file(self, id): # Remove
-        return self.collection.find_one({"submission.id":id})
-    
     def submit_doc(self, project_id, doc):
         return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.docs': doc}}).modified_count > 0
     
@@ -350,8 +341,8 @@ class Projectdb:
     def get_by_stack(self, stack, uid):
         return self.collection.find({"$or" : [
             {"stack" : stack}, 
-            {"uid": uid}
-        ]}).sort("date_time", -1)
+            {"uid": uid},
+        ], 'softdeleted_at': None}).sort("date_time", -1)
     
     def get_by_recipient_dtls(self, category, recipient, name):
         return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1)
@@ -371,7 +362,10 @@ class Projectdb:
         return marked
     
     def delete_project(self, project_id, name):
-        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"deleted":"True", "name" : f"{name} deleted"}}).modified_count>0
+        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"softdeleted_at": datetime.now()}}).modified_count>0
+    
+    def send_feedback(self, project_id, feedback):
+        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{'feedback': feedback, 'created_at': datetime.now()}}).modified_count>0
     
 class Inventorydb:
     def __init__(self) -> None:
@@ -586,7 +580,7 @@ class Request:
         self.request_dtls = request_dtls
         
 class Project:
-    def __init__(self, name, description, objectives, leads, team_members, team_avatars, stack, createdBy, status, submissions, date_created, deadline, deleted="False") -> None:
+    def __init__(self, name, description, objectives, leads, team_members, team_avatars, stack, createdBy, status, submissions, date_created, deadline) -> None:
         self.name = name
         self.description = description
         self.objectives = objectives
@@ -599,7 +593,6 @@ class Project:
         self.submissions = submissions
         self.date_created = date_created
         self.deadline = deadline
-        self.deleted = deleted
         
 # class Report: 
 #     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
@@ -619,7 +612,7 @@ class Session:
         self.last_accessed = last_accessed
         self.expired = expired
 class Report:
-    def __init__(self, title, stack, report_type, receiver, sender, submissions=None, feedback=None, created_at=None):
+    def __init__(self, title, stack, report_type, receiver, sender, avatar, submissions=None, feedback=None, created_at=None):
         self.title = title 
         self.stack = stack 
         self.report_type = report_type
@@ -628,17 +621,18 @@ class Report:
         self.created_at = created_at or datetime.now()
         self.receiver = receiver
         self.sender = sender
+        self.avatar = avatar
 class ActivityReport(Report):
-    def __init__(self, title, stack, duration, report_type,  receiver, sender, next,  completed, ongoing):
-        super().__init__(title, stack, report_type, receiver, sender)
+    def __init__(self, title, stack, duration, report_type,  receiver, sender, avatar, next,  completed, ongoing):
+        super().__init__(title, stack, report_type, receiver, sender, avatar)
         
         self.duration = duration
         self.completed = completed
         self.ongoing = ongoing
         self.next = next
 class ProjectReport(Report):
-    def __init__(self, title, stack, report_type, receiver, sender, summary):
-        super().__init__(title, stack, report_type, receiver, sender)
+    def __init__(self, title, stack, report_type, receiver, sender, avatar, summary):
+        super().__init__(title, stack, report_type, receiver, sender, avatar)
         
         self.summary = summary
          
