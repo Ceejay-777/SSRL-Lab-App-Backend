@@ -120,12 +120,12 @@ def get_hard_members():
     except Exception as e:
         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
-personnel_bp.get('/get_all_members') #Personnel tab 
+@personnel_bp.get('/get_all_members') #Personnel tab 
 @jwt_required()
 def get_all_members():
     try:
-        leads = list(User_db.get_user_by_role(role = "Lead"))
-        interns = list(User_db.get_user_by_role(role="Intern"))
+        leads = list(User_db.get_user_by_role("Lead"))
+        interns = list(User_db.get_user_by_role("Intern"))
         
         leads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads]
         interns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns]

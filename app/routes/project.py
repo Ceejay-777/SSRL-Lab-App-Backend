@@ -193,11 +193,6 @@ def edit_project(project_id): # Who can edit a project? Name, description, objec
         
         data = request.json
         print(data)
-        # name = data.get("name")
-        # existing_name = Project_db.existing_project_name(name)
-        
-        # if existing_name:
-        #     return jsonify({"message" : f"Project with name '{name}' already exists.", "status": "error"}), 409
         
         updated = Project_db.update_project_dtls(project_id, data)
         if updated:
@@ -302,7 +297,6 @@ def submit_project_link(project_id): # Add notification
         
 @project_bp.post('/project/send_announcement/<project_id>')
 def send_project_announcement(project_id):
-    
     try:    
         if (not Project_db.project_exists(project_id)):
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
@@ -330,11 +324,11 @@ def send_project_announcement(project_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@project_bp.get('/project/send_feedback/<project_id>') # Remove
+@project_bp.post('/project/send_feedback/<project_id>') 
+@jwt_required()
 def send_feedback(project_id):
     try:
         feedback = request.json.get('feedback')
-
         user_id = get_jwt_identity()
         user_profile = User_db.get_user_by_uid(user_id)
         
@@ -359,8 +353,11 @@ def send_feedback(project_id):
         
         Notifications.send_notification(notification)
         
-        return ({ user_profile:user_profile, project:project, "status" : "success"})
+        return ({"message": "Feedback sent successfully", "status" : "success"}), 200
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(error_details)
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
 

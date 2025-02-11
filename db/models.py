@@ -365,7 +365,7 @@ class Projectdb:
         return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"softdeleted_at": datetime.now()}}).modified_count>0
     
     def send_feedback(self, project_id, feedback):
-        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{'feedback': feedback, 'created_at': datetime.now()}}).modified_count>0
+        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$push": {"feedback":{'feedback': feedback, 'created_at': datetime.now()}}}).modified_count>0
     
 class Inventorydb:
     def __init__(self) -> None:
