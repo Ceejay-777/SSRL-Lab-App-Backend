@@ -4,6 +4,7 @@ import os
 import string, random
 from datetime import datetime, timedelta
 from db import *
+from pymongo import DESCENDING, ASCENDING
 
 class Userdb:
     def __init__(self) -> None:
@@ -268,22 +269,22 @@ class Projectdb:
         self.collection = Projects
         
     def get_all(self):
-        return self.collection.find({'softdeleted_at': None}).sort("date_created")
+        return self.collection.find({'softdeleted_at': None}).sort("date_created", DESCENDING)
     
     def get_all_limited(self):
-        return self.collection.find({'softdeleted_at': None}).sort("date_created").limit(4)
+        return self.collection.find({'softdeleted_at': None}).sort("date_created", DESCENDING).limit(4)
     
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
                {'leads': uid,},
                {'team_members': uid}
-           ], 'softdeleted_at': None}).limit(4)
+           ], 'softdeleted_at': None}).sort('date_created', DESCENDING).limit(4)
     
     def get_by_isMember(self, uid):
         return self.collection.find({'$or': [
                {'leads': uid},
                {'team_members': uid}
-           ], 'softdeleted_at': None})
+           ], 'softdeleted_at': None}).sort('date_created', DESCENDING)
     
     def insert_new(self, request):
         existing_project = self.collection.find_one({"name": request.name})
@@ -364,8 +365,8 @@ class Projectdb:
     def delete_project(self, project_id, name):
         return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"softdeleted_at": datetime.now()}}).modified_count>0
     
-    def send_feedback(self, project_id, feedback):
-        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$push": {"feedback":{'feedback': feedback, 'created_at': datetime.now()}}}).modified_count>0
+    def send_feedback(self, project_id, sender, feedback):
+        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$push": {"feedback":{'feedback': feedback, 'sender': sender, 'created_at': datetime.now()}}}).modified_count>0
     
 class Inventorydb:
     def __init__(self) -> None:

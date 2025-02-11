@@ -332,14 +332,15 @@ def send_feedback(project_id):
         user_id = get_jwt_identity()
         user_profile = User_db.get_user_by_uid(user_id)
         
-        project = Project_db.get_by_project_id(project_id)
+        sender = user_profile.get('fullname')
+        
         if (not Project_db.project_exists(project_id)):
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
         all = Project_db.get_project_members(project_id)
         project_name = {Project_db.get_project_name(project_id)}
         
-        send_feedback = Project_db.send_feedback(project_id, feedback)
+        send_feedback = Project_db.send_feedback(project_id, sender, feedback)
         if not send_feedback:
             return jsonify({"message": "Could not send feedback right now! Try again", "status" : "danger"}), 500
         
