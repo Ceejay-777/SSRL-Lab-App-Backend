@@ -138,6 +138,24 @@ def get_all_members():
     except Exception as e:
         return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
 
+@personnel_bp.get('/get_all_members_and_admins') 
+@jwt_required()
+def get_all_leads_and_admins():
+    try:
+        admins = list(User_db.get_user_by_role("Admin"))
+        leads = list(User_db.get_user_by_role("Lead"))
+        
+        admins = [{"id": admin['uid'], "name": admin['fullname']} for admin in admins]
+        leads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads]
+        
+        response = {
+        "members": admins + leads,
+        "status" : "success"
+        } 
+        return jsonify(convert_to_json_serializable(response)), 200
+    except Exception as e:
+        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+
 @personnel_bp.get('/personnel/get/<requested_uid>') 
 def show_user_profile(requested_uid):
     try:
