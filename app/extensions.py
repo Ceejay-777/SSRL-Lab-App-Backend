@@ -1,9 +1,6 @@
 from flask_mail import Mail
 import cloudinary
 from flask_jwt_extended import JWTManager
-from dotenv import load_dotenv
-
-load_dotenv()
 
 mail = Mail()
 jwt = JWTManager()
