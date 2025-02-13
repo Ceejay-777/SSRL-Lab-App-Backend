@@ -164,6 +164,9 @@ class Requestdb:
     def get_all(self):
         return self.collection.find().sort("date_time", -1)
     
+    # def get_all(self):
+    #     return self.collection.find().sort("date_time", -1)
+    
     def get_by_request_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})
 
@@ -211,22 +214,25 @@ class Reportdb:
         return self.collection.insert_one(request.__dict__).inserted_id 
     
     def get_all(self):
-        return self.collection.find({'softdeleted_at': None}).sort("date_time", -1)
+        return self.collection.find({'softdeleted_at': None}).sort("created_at", DESCENDING)
+    
+    def get_all_limited(self):
+        return self.collection.find({'softdeleted_at': None}).sort("created_at", DESCENDING).limit(3)
     
     def get_by_stack(self, stack):
-        return self.collection.find({"stack": stack, 'softdeleted_at': None}).sort("created_at", -1)
+        return self.collection.find({"stack": stack, 'softdeleted_at': None}).sort("created_at", DESCENDING)
     
     def get_by_isMember(self, uid):
         return self.collection.find({'$or': [
                {'sender': uid},
                {'receiver': uid}
-           ], 'softdeleted_at': None}).sort("date_time", -1)
+           ], 'softdeleted_at': None}).sort("created_at", DESCENDING)
         
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
                {'sender': uid},
                {'receiver': uid}
-           ], 'softdeleted_at': None}).sort("date_time", -1).limit(3)
+           ], 'softdeleted_at': None}).sort("created_at", DESCENDING).limit(3)
     
     def get_by_report_id(self, _id):
         return self.collection.find_one({"_id":ObjectId(_id)})

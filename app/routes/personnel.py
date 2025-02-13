@@ -36,15 +36,17 @@ def home():
         avatar = user_profile["avatar"]
         todos = list(Todos_db.get_todos_by_user_id_limited(uid))
         
-        reports = list(Report_db.get_by_isMember_limited(uid))
-        requests = list(Request_db.get_by_isMember_limited(uid))
-        notifications = list(Notifications.get_by_isMember_limited(uid))
-            
         if user_role=="Admin":
             projects = list(Project_db.get_all_limited())
+            reports = list(Report_db.get_all_limited())
         elif user_role == "Lead":
             projects = list(Project_db.get_by_stack_limited(stack))
-        else: projects = list(Project_db.get_by_isMember_limited(uid))
+        else:
+            projects = list(Project_db.get_by_isMember_limited(uid))
+            reports = list(Report_db.get_by_isMember_limited(uid))
+        
+        requests = list(Request_db.get_by_isMember_limited(uid))
+        notifications = list(Notifications.get_by_isMember_limited(uid))
             
         response = convert_to_json_serializable({"firstname" : firstname, "avatar" : avatar, "user_role": user_role, "stack": stack, "reports" : reports, "requests" : requests, "projects" : projects, "todos" : todos, "notifications": notifications, "status" : "success"})
             

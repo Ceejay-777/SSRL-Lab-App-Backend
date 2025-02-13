@@ -27,9 +27,11 @@ def create_report():
     sender = User_db.get_user_by_uid(uid)
     avatar = sender.get('avatar', 'NIL')
     stack = sender.get('stack')
+    sender_name = sender.get('fullname')
+    sender = {'id':uid, 'name':sender_name}
     
     if report_type == "activity":
-        duration = data.get('duration')
+        duration = data.get('duration') 
         completed = data.get('completed', [])
         ongoing = data.get('ongoing', [])
         next = data.get('next', [])
@@ -47,7 +49,7 @@ def create_report():
     else:
         return jsonify({"message": "Failed to create report", "status": "error"}), 500
     
-@report_bp.get('/report/get_all')
+@report_bp.get('/reports/get_all')
 @jwt_required()
 def get_all_reports():
     try:
@@ -55,9 +57,6 @@ def get_all_reports():
         info = get_jwt()
         user_role = info['user_role']
         stack = info['stack']
-        
-        if not user_role or not stack:
-            return jsonify({"message": "Something went wrong. Try logging in again.", "status": "error"}), 401
         
         if user_role == 'Admin':
             reports = Report_db.get_all()
@@ -87,7 +86,7 @@ def get_one(report_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
         
-@report_bp.post('/report/give_feedback/<report_id>') 
+@report_bp.post('/report/send_feedback/<report_id>') 
 @jwt_required()
 def give_feedback(report_id):
     try:
