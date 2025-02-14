@@ -1614,223 +1614,223 @@ def intern_submissions():
          return jsonify({"message" : 'You are not logged in!', "status" : "info"}) 
 
 
-@app.post('/request/create')
-def create_request():
+# @app.post('/request/create')
+# def create_request():
     
-    if "user_id" in session:
-        user_id = session["user_id"]
-        uid = session["user_uid"]
+#     if "user_id" in session:
+#         user_id = session["user_id"]
+#         uid = session["user_uid"]
         
-        title = request.json.get("title")
-        type = request.json.get("type")
-        request_dtls = request.json.get("request_dtls")
+#         title = request.json.get("title")
+#         type = request.json.get("type")
+#         request_dtls = request.json.get("request_dtls")
             
-        receipient = request.json.get("receipient")
-        sender = uid
-        sender_name = User_db.get_user_fullname(uid)
-        # status =  Approved, Declined or pending
-        date_submitted = get_date_now()
-        date_time = datetime.now()
+#         receipient = request.json.get("receipient")
+#         sender = uid
+#         sender_name = User_db.get_user_fullname(uid)
+#         # status =  Approved, Declined or pending
+#         date_submitted = get_date_now()
+#         date_time = datetime.now()
         
-        rec_not_title = "You received a new Request"
-        rec_not_receivers = receipient
-        rec_not_type = "Request"
-        rec_not_message = f"You just received a new request from {sender_name}. Check it out in your requests tab!"
-        rec_not_status = "unread"
-        rec_not_sentAt = datetime.now()
-        notification = Notification(rec_not_title, rec_not_receivers, rec_not_type, rec_not_message, rec_not_status, rec_not_sentAt)
+#         rec_not_title = "You received a new Request"
+#         rec_not_receivers = receipient
+#         rec_not_type = "Request"
+#         rec_not_message = f"You just received a new request from {sender_name}. Check it out in your requests tab!"
+#         rec_not_status = "unread"
+#         rec_not_sentAt = datetime.now()
+#         notification = Notification(rec_not_title, rec_not_receivers, rec_not_type, rec_not_message, rec_not_status, rec_not_sentAt)
         
-        requested = Request(title, type, sender, receipient, date_submitted, date_time, request_dtls)
-        request_id = Request_db.insert_new(requested)
+#         requested = Request(title, type, sender, receipient, date_submitted, date_time, request_dtls)
+#         request_id = Request_db.insert_new(requested)
             
-        if request_id: 
-            Notifications.send_notification(notification)
-            return jsonify({"message" : "Request submitted successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message" : "Request unable to be submitted. Please try again!", "status" : "error"}), 500
+#         if request_id: 
+#             Notifications.send_notification(notification)
+#             return jsonify({"message" : "Request submitted successfully!", "status" : "success"}), 200
+#         else:
+#             return jsonify({"message" : "Request unable to be submitted. Please try again!", "status" : "error"}), 500
         
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+#     else:
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
 
-@app.get('/request/view/<request_id>')
-def view_request(request_id):
+# @app.get('/request/view/<request_id>')
+# def view_request(request_id):
     
-    if "user_id" in session:
+#     if "user_id" in session:
         
-        request = Request_db.get_by_request_id(request_id)
-        # eqpts = Eqpt_db.get_all_available_eqpt()
+#         request = Request_db.get_by_request_id(request_id)
+#         # eqpts = Eqpt_db.get_all_available_eqpt()
     
-        # return render_template('pages/view_request.html', request=request, user_profile=user_profile, eqpts=eqpts)
-        response = convert_to_json_serializable({"request":request, "status" : "success"})
-        return jsonify(response), 200
-    else:
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+#         # return render_template('pages/view_request.html', request=request, user_profile=user_profile, eqpts=eqpts)
+#         response = convert_to_json_serializable({"request":request, "status" : "success"})
+#         return jsonify(response), 200
+#     else:
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
-@app.get('/request/approve/<request_id>')
-def approve_request(request_id):
+# @app.get('/request/approve/<request_id>')
+# def approve_request(request_id):
     
-    if "user_id" in session:
-        uid = session["user_uid"]
-        approved = Request_db.approve_request(request_id)
-        title = Request_db.get_by_request_id(request_id)['title']
+#     if "user_id" in session:
+#         uid = session["user_uid"]
+#         approved = Request_db.approve_request(request_id)
+#         title = Request_db.get_by_request_id(request_id)['title']
         
-        not_title = "Request Approved"
-        not_receivers = [uid]
-        not_type = "Request"
-        not_message = f"Your request '{title}' has been approved. Check it out in your requests tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+#         not_title = "Request Approved"
+#         not_receivers = [uid]
+#         not_type = "Request"
+#         not_message = f"Your request '{title}' has been approved. Check it out in your requests tab!"
+#         not_status = "unread"
+#         not_sentAt = datetime.now()
+#         notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
 
-        if approved: 
-            Notifications.send_notification(notification)
-            return jsonify({"message" : 'Request approved', "status" : "success"}), 200                                                  
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+#         if approved: 
+#             Notifications.send_notification(notification)
+#             return jsonify({"message" : 'Request approved', "status" : "success"}), 200                                                  
+#         else:
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#          return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
     
-@app.get('/request/decline/<request_id>')
-def decline_request(request_id):
+# @app.get('/request/decline/<request_id>')
+# def decline_request(request_id):
     
-    if "user_id" in session:
-        uid = session["user_uid"]
-        declined = Request_db.decline_request(request_id)
-        title = Request_db.get_by_request_id(request_id)['title']
+#     if "user_id" in session:
+#         uid = session["user_uid"]
+#         declined = Request_db.decline_request(request_id)
+#         title = Request_db.get_by_request_id(request_id)['title']
         
-        not_title = "Request Declined"
-        not_receivers = [uid]
-        not_type = "Request"
-        not_message = f"Your request '{title}' has been declined. Check it out in your requests tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+#         not_title = "Request Declined"
+#         not_receivers = [uid]
+#         not_type = "Request"
+#         not_message = f"Your request '{title}' has been declined. Check it out in your requests tab!"
+#         not_status = "unread"
+#         not_sentAt = datetime.now()
+#         notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
 
-        if declined: 
-            # flash('Request declined',"success")
-            # return redirect(url_for('view_request', request_id=request_id))
-            Notifications.send_notification(notification)
-            return jsonify({"message" : 'Request declined', "status" : "success"})                                                   
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#         if declined: 
+#             # flash('Request declined',"success")
+#             # return redirect(url_for('view_request', request_id=request_id))
+#             Notifications.send_notification(notification)
+#             return jsonify({"message" : 'Request declined', "status" : "success"})                                                   
+#         else:
+#             # flash('An error occurred! Try again', "danger")
+#             # return redirect(url_for('view_request', request_id=request_id))
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
-@app.post('/request/edit/<request_id>') # Remove
-def edit_request(request_id):
+# @app.post('/request/edit/<request_id>') # Remove
+# def edit_request(request_id):
     
-    if "user_id" in session:
-        user_id = session["user_id"]
-        uid = session["user_uid"]
+#     if "user_id" in session:
+#         user_id = session["user_id"]
+#         uid = session["user_uid"]
         
-        title = request.form.get("title")
-        type = request.form.get("type")
-        eqpt_id = request.form.get("eqpt_id")
+#         title = request.form.get("title")
+#         type = request.form.get("type")
+#         eqpt_id = request.form.get("eqpt_id")
         
-        if type == "Equipment":
-            eqpt = {
-                "id": eqpt_id,
-                "name": Eqpt_db.get_eqpt_by_id(eqpt_id)["name"] 
-            }
-        else:
-            eqpt = "None"
+#         if type == "Equipment":
+#             eqpt = {
+#                 "id": eqpt_id,
+#                 "name": Eqpt_db.get_eqpt_by_id(eqpt_id)["name"] 
+#             }
+#         else:
+#             eqpt = "None"
             
             
-        quantity = request.form.get("quantity")
-        date_from = request.form.get("date_from")
-        date_to = request.form.get("date_to")
-        purpose = request.form.get("purpose")
-        recipient = request.form.get("recipient")
-        sender = {
-            "_id": user_id,
-            "uid": uid  
+#         quantity = request.form.get("quantity")
+#         date_from = request.form.get("date_from")
+#         date_to = request.form.get("date_to")
+#         purpose = request.form.get("purpose")
+#         recipient = request.form.get("recipient")
+#         sender = {
+#             "_id": user_id,
+#             "uid": uid  
                   
-        }
-        status = "Pending"
-        now = datetime.now().strftime
-        month = now("%B")
-        date = now("%d")
-        year = now("%Y")
-        date_submitted = "{0} {1}, {2}".format(month, date, year)
-        date_time = datetime.now()
+#         }
+#         status = "Pending"
+#         now = datetime.now().strftime
+#         month = now("%B")
+#         date = now("%d")
+#         year = now("%Y")
+#         date_submitted = "{0} {1}, {2}".format(month, date, year)
+#         date_time = datetime.now()
         
-        if recipient == "Admin":
-            role = "Admin"
-            id = User_db.get_user_by_role_one(role)["_id"]
+#         if recipient == "Admin":
+#             role = "Admin"
+#             id = User_db.get_user_by_role_one(role)["_id"]
             
-            recipient_dtls = {
-                "position": "Admin",
-                "id": id
-            }
-            dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
-            updated = Request_db.update_request_dtls(request_id,dtls)
+#             recipient_dtls = {
+#                 "position": "Admin",
+#                 "id": id
+#             }
+#             dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
+#             updated = Request_db.update_request_dtls(request_id,dtls)
             
-            if updated:
-                # flash("Request edited successfully!", "success")
-                # return redirect(url_for('view_request', request_id=request_id))
-                return jsonify({"message" : 'Request edited successfully!', "status" : "success"})                                                   
-            else:
-                # flash('An error occurred! Try again', "danger")
-                # return redirect(url_for('view_request', request_id=request_id))
-                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#             if updated:
+#                 # flash("Request edited successfully!", "success")
+#                 # return redirect(url_for('view_request', request_id=request_id))
+#                 return jsonify({"message" : 'Request edited successfully!', "status" : "success"})                                                   
+#             else:
+#                 # flash('An error occurred! Try again', "danger")
+#                 # return redirect(url_for('view_request', request_id=request_id))
+#                 return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
 
-        elif recipient == "software":
-            stack = "Software"
-            id = User_db.get_lead(stack)["_id"]
+#         elif recipient == "software":
+#             stack = "Software"
+#             id = User_db.get_lead(stack)["_id"]
             
-            recipient_dtls = {
-                "position": "Software",
-                "id": id
-            }
-            dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
-            updated = Request_db.update_request_dtls(request_id,dtls)
-            if updated:
-                # flash("Request edited successfully!", "success")
-                # return redirect(url_for('view_request', request_id=request_id))
-                return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
-            else:
-                # flash('An error occurred! Try again', "danger")
-                # return redirect(url_for('view_request', request_id=request_id))
-                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#             recipient_dtls = {
+#                 "position": "Software",
+#                 "id": id
+#             }
+#             dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
+#             updated = Request_db.update_request_dtls(request_id,dtls)
+#             if updated:
+#                 # flash("Request edited successfully!", "success")
+#                 # return redirect(url_for('view_request', request_id=request_id))
+#                 return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
+#             else:
+#                 # flash('An error occurred! Try again', "danger")
+#                 # return redirect(url_for('view_request', request_id=request_id))
+#                 return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
 
-        elif recipient == "hardware":
-            stack="Hardware" 
-            id = User_db.get_lead(stack)["_id"]
-            recipient_dtls = {
-                "position": "Hardware",
-                "id": id
-            }
+#         elif recipient == "hardware":
+#             stack="Hardware" 
+#             id = User_db.get_lead(stack)["_id"]
+#             recipient_dtls = {
+#                 "position": "Hardware",
+#                 "id": id
+#             }
         
-            dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
-            updated = Request_db.update_request_dtls(request_id,dtls)
-            if updated:
-                return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
-            else:
-                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-        else:
-            return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
-    else:
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#             dtls = Request(title, type, eqpt, quantity, date_from, date_to, purpose, sender, recipient_dtls, status, date_submitted, date_time)
+#             updated = Request_db.update_request_dtls(request_id,dtls)
+#             if updated:
+#                 return jsonify({"message" : 'Request edited successfully!', "status" : "success"})  
+#             else:
+#                 return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#         else:
+#             return jsonify({"message" : 'permission not granted', "status" : "info"})                                                   
+#     else:
+#          return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
-@app.get('/request/delete/<request_id>') # Who can delete a request?
-def delete_request(request_id):
+# @app.get('/request/delete/<request_id>') # Who can delete a request?
+# def delete_request(request_id):
     
-    if "user_id" in session:
+#     if "user_id" in session:
             
-        deleted = Request_db.delete_request(request_id)
+#         deleted = Request_db.delete_request(request_id)
         
-        if deleted:
-            return jsonify({"message" : 'Request deleted successfully!', "status" : "success"}), 200     
-        else:
-            return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"}), 500  
-    else:
-         return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
+#         if deleted:
+#             return jsonify({"message" : 'Request deleted successfully!', "status" : "success"}), 200     
+#         else:
+#             return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"}), 500  
+#     else:
+#          return jsonify({"message" : 'You are not logged in!', "status" : "info"}), 401
   
 # @app.post('/report/create')
 # @jwt_required()

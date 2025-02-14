@@ -198,13 +198,16 @@ class Requestdb:
         return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":dtls.__dict__}).modified_count>0
     
     def delete_request(self, request_id):
-        return self.collection.delete_one({"_id":ObjectId(request_id)}).deleted_count>0
+        return self.collection.updated_one({"_id":ObjectId(request_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
     
     def approve_request(self,request_id):
         return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":{"status":"Approved"}}).modified_count>0
     
     def decline_request(self,request_id):
         return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":{"status":"Declined"}}).modified_count>0
+    
+    def update_many_reqs(self):
+        return self.collection.update_many({}, {"$set": {"avatar": "NIL"}})
     
 class Reportdb:
     def __init__(self) -> None:
@@ -576,14 +579,14 @@ class updateAdmin:
         self.bday = bday
         
 class Request:
-    def __init__(self, title, type, sender, receipient, date_submitted, date_time, request_dtls, status="Pending") -> None:
+    def __init__(self, title, type, sender, avatar, receipient, request_dtls, created_at=None, status="Pending") -> None:
         self.title = title
         self.type = type
         self.sender = sender
+        self.avatar = avatar
         self.receipient = receipient
         self.status = status
-        self.date_submitted = date_submitted
-        self.date_time = date_time
+        self.created_at = created_at or datetime.now()
         self.request_dtls = request_dtls
         
 class Project:

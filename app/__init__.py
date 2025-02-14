@@ -5,6 +5,7 @@ from app.routes.auth import auth_bp
 from app.routes.personnel import personnel_bp
 from app.routes.project import project_bp
 from app.routes.report import report_bp
+from app.routes.request import request_bp
 
 from app.extensions import mail, jwt, init_cloudinary
 
@@ -16,6 +17,7 @@ def create_app():
     app.register_blueprint(personnel_bp)
     app.register_blueprint(project_bp)
     app.register_blueprint(report_bp)
+    app.register_blueprint(request_bp)
 
     Bcrypt(app)
 

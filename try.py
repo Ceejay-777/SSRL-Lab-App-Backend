@@ -1,4 +1,13 @@
 from main import app
+from db.models import Requestdb
+
+Request_db = Requestdb()
+
+# def update_request_time():
+#     Request_db.update_many_reqs()
+    
+# update_request_time()
+
 
 def verify_smtp_connection():
     import smtplib
@@ -11,4 +20,5 @@ def verify_smtp_connection():
     except Exception as e:
         print(f"SMTP connection failed: {str(e)}")
     
-verify_smtp_connection()
+# verify_smtp_connection()
+
