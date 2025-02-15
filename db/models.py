@@ -87,26 +87,22 @@ class Todosdb:
         self.collection = Todos
         
     def create_todo(self, dtls):
-        return self.collection.insert_one(dtls).inserted_id
+        return self.collection.insert_one(dtls.__dict__).inserted_id
     
-    def update_todo(self, todo_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(todo_id)},{"$set":dtls}).modified_count>0
+    def add_todo(self, uid, todo):
+        return self.collection.update_one({"uid":uid},{"$push": {"todo": {"todo": todo, "created_at": datetime.now(), "completed": False}}}).modified_count>0
+    
+    def change_status(self, uid, status):
+        return self.collection.update_one({"uid": uid}, {"$set": {"todo.completed": status}}).modified_count>0
 
-    def delete_todo(self, todo_id):
-        return self.collection.delete_one({"_id":ObjectId(todo_id)}).deleted_count>0
-    
-    def get_specific_todo(self, user_id, todo_id):
-        return self.collection.find_one({"_id":ObjectId(todo_id), "uid":user_id})
+    def delete_todo(self, uid):
+        return self.collection.update_one({"uid":uid}, {"$set": {"softdeletd_at" : datetime.now()}}).modified_count>0
     
     def get_todos_by_user_id(self, user_id):
-        return self.collection.find({"uid":user_id}).sort("date_time")
+        return self.collection.find({"uid":user_id})
     
     def get_todos_by_user_id_limited(self, user_id):
-        return self.collection.find({"uid":user_id}).sort("date_time")
-    
-    def get_all_todos(self):
-        return self.collection.find()
-    
+        return self.collection.find({"uid":user_id})
     
 class Eqptdb:
     def __init__(self) -> None:
@@ -604,17 +600,6 @@ class Project:
         self.date_created = date_created
         self.deadline = deadline
         
-# class Report: 
-#     def __init__(self, title, report_no, content, recipient, sender, date_submitted, status, date_time) -> None:
-#         self.title = title
-#         self.report_no = report_no
-#         self.content = content
-#         self.recipient = recipient
-#         self.sender = sender
-#         self.date_submitted = date_submitted
-#         self.status = status
-#         self.date_time = date_time
-        
 class Session:
     def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="false"):
         self.user_data = user_data
@@ -640,6 +625,13 @@ class ActivityReport(Report):
         self.completed = completed
         self.ongoing = ongoing
         self.next = next
+    
+class Todo:
+    def __init__(self, uid, todo=None, created_at=None):
+        
+        self.uid = uid
+        self.todo = todo or []
+        self.created_at = created_at or datetime.now()
 class ProjectReport(Report):
     def __init__(self, title, stack, report_type, receiver, sender, avatar, summary):
         super().__init__(title, stack, report_type, receiver, sender, avatar)

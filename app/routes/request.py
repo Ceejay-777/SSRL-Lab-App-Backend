@@ -24,11 +24,12 @@ Notifications = Notificationsdb()
 def create_request():
     try:
         uid = get_jwt_identity()
-        
-        title = request.json.get("title")
-        type = request.json.get("type")
-        request_dtls = request.json.get("request_dtls")
-        receipient = request.json.get("receipient")
+        data = request.json
+        print(data)
+        title = data.get("title")
+        type = data.get("type")
+        request_dtls = data.get("request_dtls")
+        receipient = data.get("receipient")
         sender_name = User_db.get_user_fullname(uid)
         sender = {'id': uid, 'name': sender_name}
         avatar = User_db.get_user_by_uid(uid).get('avatar', 'NIL')
@@ -44,7 +45,7 @@ def create_request():
         new_request = Request(title, type, sender, avatar, receipient, request_dtls)
         request_id = Request_db.insert_new(new_request)
         if not request_id:
-            return jsonify({'message': "Couldn't send request.Something went wrong", 'status': 'error'})
+            return jsonify({'message': "Couldn't send request.Something went wrong", 'status': 'error'}), 500
             
         if request_id: 
             Notifications.send_notification(notification)
@@ -89,7 +90,8 @@ def view_request(request_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@request_bp.get('/request/approve/<request_id>')
+@request_bp.post('/request/approve/<request_id>')
+@jwt_required()
 def approve_request(request_id):
     try:
         uid = get_jwt_identity()
@@ -113,7 +115,7 @@ def approve_request(request_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@request_bp.get('/request/decline/<request_id>')
+@request_bp.post('/request/decline/<request_id>')
 @jwt_required()
 def decline_request(request_id):
     try:
@@ -134,7 +136,7 @@ def decline_request(request_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@request_bp.get('/request/delete/<request_id>') # Who can delete a request?
+@request_bp.get('/request/delete/<request_id>') 
 def delete_request(request_id):
     try:
         deleted = Request_db.delete_request(request_id)

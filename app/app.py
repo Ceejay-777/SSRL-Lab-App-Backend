@@ -2400,141 +2400,141 @@ def download_project_submissions(project_id, id):
         # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})  
     
-@app.post('/todo/create') 
-def create_todo():
+# @app.post('/todo/create') 
+# def create_todo():
     
-    if "user_id" in session:
-        user_id = session["user_id"]
-        description = request.get_json()['description']
+#     if "user_id" in session:
+#         user_id = session["user_id"]
+#         description = request.get_json()['description']
         
-        dtls = {
-            "uid": user_id,
-            "description": description,
-            "date_time": datetime.now(),
-            "completed": False
-        }
-        id = str(Todos_db.create_todo(dtls))
+#         dtls = {
+#             "uid": user_id,
+#             "description": description,
+#             "date_time": datetime.now(),
+#             "completed": False
+#         }
+#         id = str(Todos_db.create_todo(dtls))
         
-        return jsonify({
-            'description': description,
-            'id' : id
-        })
+#         return jsonify({
+#             'description': description,
+#             'id' : id
+#         })
     
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
-@app.get('/todo/delete/<todo_id>')
-def delete_todo(todo_id):    
-    if "user_id" in session:        
-        deleted = Todos_db.delete_todo(todo_id)
+# @app.get('/todo/delete/<todo_id>')
+# def delete_todo(todo_id):    
+#     if "user_id" in session:        
+#         deleted = Todos_db.delete_todo(todo_id)
         
-        if deleted:
-            return jsonify({
-                'description':"deleted"
-            })
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#         if deleted:
+#             return jsonify({
+#                 'description':"deleted"
+#             })
+#         else:
+#             # flash('An error occurred! Try again', "danger")
+#             # return redirect(url_for('view_request', request_id=request_id))
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
-@app.post('/todo/<todo_id>/set-completed')
-def mark_completed(todo_id):    
+# @app.post('/todo/<todo_id>/set-completed')
+# def mark_completed(todo_id):    
     
-    if "user_id" in session:   
-        user_id = session["user_id"]
+#     if "user_id" in session:   
+#         user_id = session["user_id"]
         
-        status = request.get_json()['completed']
-        dtls = {
-            "completed": status
-        }     
-        marked = Todos_db.update_todo(todo_id, dtls)
-        todo = Todos_db.get_specific_todo(user_id, todo_id)
-        if marked:
-            return jsonify({
-                'id': todo_id,
-                'description': todo["description"],
-                'completed':status  
-            })
-        else:
-            # flash('An error occurred! Try again', "danger")
-            # return redirect(url_for('view_request', request_id=request_id))
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#         status = request.get_json()['completed']
+#         dtls = {
+#             "completed": status
+#         }     
+#         marked = Todos_db.update_todo(todo_id, dtls)
+#         todo = Todos_db.get_specific_todo(user_id, todo_id)
+#         if marked:
+#             return jsonify({
+#                 'id': todo_id,
+#                 'description': todo["description"],
+#                 'completed':status  
+#             })
+#         else:
+#             # flash('An error occurred! Try again', "danger")
+#             # return redirect(url_for('view_request', request_id=request_id))
+#             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
-@app.post('/todos/filter')
-def task_filter():
+# @app.post('/todos/filter')
+# def task_filter():
     
-    if "user_id" in session:
-        user_id = session["user_id"]
+#     if "user_id" in session:
+#         user_id = session["user_id"]
         
-        option = request.get_json()['filter']
-        todos = list(Todos_db.get_todos_by_user_id(user_id))
-        app.logger.info(option)
+#         option = request.get_json()['filter']
+#         todos = list(Todos_db.get_todos_by_user_id(user_id))
+#         app.logger.info(option)
         
-        taskCompleted = 0
-        if option == "week":
-            for todo in todos:
-                if todo["completed"]==True:
-                    if (todo["date_time"]).strftime("%U")==datetime.now().strftime("%U"):
-                        taskCompleted = int(taskCompleted) + 1
-                    else:
-                        continue
-                else:
-                    continue
+#         taskCompleted = 0
+#         if option == "week":
+#             for todo in todos:
+#                 if todo["completed"]==True:
+#                     if (todo["date_time"]).strftime("%U")==datetime.now().strftime("%U"):
+#                         taskCompleted = int(taskCompleted) + 1
+#                     else:
+#                         continue
+#                 else:
+#                     continue
             
-            return jsonify({ 'taskCompleted': taskCompleted})
+#             return jsonify({ 'taskCompleted': taskCompleted})
         
-        elif option == "month":
-            for todo in todos:
-                if todo["completed"]==True:
-                    if (todo["date_time"]).strftime("%m")==datetime.now().strftime("%m"):
-                        taskCompleted = int(taskCompleted) + 1
-                    else:
-                        continue
-                else:
-                    continue
-            return jsonify({ 'taskCompleted': taskCompleted})
+#         elif option == "month":
+#             for todo in todos:
+#                 if todo["completed"]==True:
+#                     if (todo["date_time"]).strftime("%m")==datetime.now().strftime("%m"):
+#                         taskCompleted = int(taskCompleted) + 1
+#                     else:
+#                         continue
+#                 else:
+#                     continue
+#             return jsonify({ 'taskCompleted': taskCompleted})
             
                 
-        elif option == "year":
-            for todo in todos:
-                if todo["completed"]==True:
-                    if (todo["date_time"]).strftime("%Y")==datetime.now().strftime("%Y"):
-                        taskCompleted = int(taskCompleted) + 1
-                    else:
-                        continue
-                else:
-                    continue
-            return jsonify({ 'taskCompleted': taskCompleted})
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#         elif option == "year":
+#             for todo in todos:
+#                 if todo["completed"]==True:
+#                     if (todo["date_time"]).strftime("%Y")==datetime.now().strftime("%Y"):
+#                         taskCompleted = int(taskCompleted) + 1
+#                     else:
+#                         continue
+#                 else:
+#                     continue
+#             return jsonify({ 'taskCompleted': taskCompleted})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 
-@app.get('/all/todos')
-def all_todos():
-    if "user_id" in session:
-        user_id = session["user_id"]
-        user_profile = User_db.get_user_by_oid(user_id)
-        all_todos = list(Todos_db.get_todos_by_user_id(user_id))
+# @app.get('/all/todos')
+# def all_todos():
+#     if "user_id" in session:
+#         user_id = session["user_id"]
+#         user_profile = User_db.get_user_by_oid(user_id)
+#         all_todos = list(Todos_db.get_todos_by_user_id(user_id))
         
-        return render_template('pages/all_todos.html', all_todos=all_todos, user_profile=user_profile)
+#         return render_template('pages/all_todos.html', all_todos=all_todos, user_profile=user_profile)
 
-    else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
-        return jsonify({"message" : 'You are not logged in!', "status" : "info"})
+#     else:
+#         # flash  ('you are not logged in!', "danger")
+#         # return redirect(url_for('login')) 
+#         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
 
 @app.get('/attendance')
 def mark_atendance():
