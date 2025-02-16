@@ -87,9 +87,11 @@ class Todosdb:
         self.collection = Todos
         
     def create_todo(self, dtls):
+        print("Okay")
         return self.collection.insert_one(dtls.__dict__).inserted_id
     
     def add_todo(self, uid, todo):
+        # print("Okay")
         return self.collection.update_one({"uid":uid},{"$push": {"todo": {"todo": todo, "created_at": datetime.now(), "completed": False}}}).modified_count>0
     
     def change_status(self, uid, status):
@@ -102,7 +104,7 @@ class Todosdb:
         return self.collection.find({"uid":user_id})
     
     def get_todos_by_user_id_limited(self, user_id):
-        return self.collection.find({"uid":user_id})
+        return self.collection.find({"uid":user_id}).lomit(4)
     
 class Eqptdb:
     def __init__(self) -> None:

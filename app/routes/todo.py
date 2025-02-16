@@ -19,31 +19,37 @@ Project_db = Projectdb()
 Todos_db = Todosdb()
 Notifications = Notificationsdb()
 
-todo_bp.post('/todo/create') 
+@todo_bp.post('/todo/create') 
 @jwt_required()
 def create_todo():
     try:
         uid = get_jwt_identity()
         todo = request.json.get("todo")
         
-        existing_todo = Todos_db.get_todos_by_user_id(uid)
+        new_todo = Todo(uid)
+        created_new_todo = Todos_db.create_todo(new_todo)
+        
+        existing_todo = Todos_db.get_todos_by_user_id("1234567890")
         if not existing_todo:
+            print("No existing")
             new_todo = Todo(uid)
             created_new_todo = Todos_db.create_todo(new_todo)
             
             if not created_new_todo:
-                return jsonify({"message" : 'Could not create new todo! Try again', "status" : "error"}), 500
+                return jsonify({"message" : 'Could not create new todo! Try again 1', "status" : "error"}), 500
+            
+        print(existing_todo)
             
         added_todo = Todos_db.add_todo(uid, todo)
         if not added_todo:
-                return jsonify({"message" : 'Could not create new todo! Try again', "status" : "error"}), 500
+                return jsonify({"message" : 'Could not create new todo! Try again 2', "status" : "error"}), 500
             
         return jsonify({"message" : 'Todo created successfully', "status" : "success"}), 200
     
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
         
-todo_bp.get('/todo/delete/<todo_id>')
+@todo_bp.get('/todo/delete/<todo_id>')
 @jwt_required()
 def delete_todo(todo_id):    
     try:
@@ -57,9 +63,9 @@ def delete_todo(todo_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-todo_bp.post('/todo/change_status')
-jwt_required()
-def mark_completed():    
+@todo_bp.post('/todo/change_status')
+@jwt_required()
+def change_status():    
     try:
         uid = get_jwt_identity()
         status = request.get_json()['completed']
@@ -73,7 +79,7 @@ def mark_completed():
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-todo_bp.get('/todos/get_all')
+@todo_bp.get('/todos/get_all')
 @jwt_required()
 def all_todos():
     try:
