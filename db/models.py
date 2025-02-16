@@ -100,11 +100,11 @@ class Todosdb:
     def delete_todo(self, uid):
         return self.collection.update_one({"uid":uid}, {"$set": {"softdeletd_at" : datetime.now()}}).modified_count>0
     
-    def get_todos_by_user_id(self, user_id):
-        return self.collection.find({"uid":user_id})
+    def get_todo_by_user_id(self, user_id):
+        return self.collection.find_one({"uid":user_id})
     
     def get_todos_by_user_id_limited(self, user_id):
-        return self.collection.find({"uid":user_id}).lomit(4)
+        return self.collection.find({"uid":user_id}).limit(4)
     
 class Eqptdb:
     def __init__(self) -> None:

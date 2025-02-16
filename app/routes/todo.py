@@ -24,21 +24,17 @@ Notifications = Notificationsdb()
 def create_todo():
     try:
         uid = get_jwt_identity()
+        # uid = "CovenantSSRL812"
         todo = request.json.get("todo")
         
-        new_todo = Todo(uid)
-        created_new_todo = Todos_db.create_todo(new_todo)
+        existing_todo = Todos_db.get_todo_by_user_id(uid)
         
-        existing_todo = Todos_db.get_todos_by_user_id("1234567890")
         if not existing_todo:
-            print("No existing")
             new_todo = Todo(uid)
             created_new_todo = Todos_db.create_todo(new_todo)
             
             if not created_new_todo:
                 return jsonify({"message" : 'Could not create new todo! Try again 1', "status" : "error"}), 500
-            
-        print(existing_todo)
             
         added_todo = Todos_db.add_todo(uid, todo)
         if not added_todo:
