@@ -37,19 +37,20 @@ def create_todo():
                 return jsonify({"message" : 'Could not create new todo! Try again 1', "status" : "error"}), 500
             
         added_todo = Todos_db.add_todo(uid, todo)
-        if not added_todo:
-                return jsonify({"message" : 'Could not create new todo! Try again 2', "status" : "error"}), 500
+        if not added_todo[0]:
+            return jsonify({"message" : 'Could not create new todo! Try again 2', "status" : "error"}), 500
             
-        return jsonify({"message" : 'Todo created successfully', "status" : "success"}), 200
+        return jsonify({"message" : 'Todo created successfully', "status" : "success", "id": added_todo[1]}), 200
     
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
         
-@todo_bp.get('/todo/delete/<todo_id>')
+@todo_bp.delete('/todo/delete/<todo_id>')
 @jwt_required()
 def delete_todo(todo_id):    
     try:
-        deleted = Todos_db.delete_todo(todo_id)
+        uid = get_jwt_identity()
+        deleted = Todos_db.delete_todo(uid, todo_id)
         
         if not deleted:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
@@ -59,13 +60,13 @@ def delete_todo(todo_id):
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@todo_bp.post('/todo/change_status')
+@todo_bp.patch('/todo/change_status/<todo_id>')
 @jwt_required()
-def change_status():    
+def change_status(todo_id):    
     try:
         uid = get_jwt_identity()
-        status = request.get_json()['completed']
-        change_status = Todos_db.change_status(uid, status)
+        status = request.json.get("status")
+        change_status = Todos_db.change_status(uid, todo_id, status)
         
         if not change_status:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "error"})
@@ -75,16 +76,30 @@ def change_status():
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@todo_bp.get('/todos/get_all')
+@todo_bp.get('/todo/get_all')
 @jwt_required()
 def all_todos():
     try:
         uid = get_jwt_identity()
-        all_todos = convert_to_json_serializable(list(Todos_db.get_todos_by_user_id(uid).get("todo", {})))
+        all_todos = convert_to_json_serializable(list(Todos_db.get_todo_by_user_id(uid).get("todo", {})))
         
-        return jsonify({"todos": all_todos, 'status': 'success'})
+        return jsonify({"todos": all_todos, 'status': 'success'}), 200
         
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
+@todo_bp.patch('/todo/edit/<todo_id>')
+@jwt_required()
+def edit_todo(todo_id):
+    try:
+        uid = get_jwt_identity()
+        todo = request.json.get("todo")
+        
+        edited = Todos_db.edit_todo(uid, todo_id, todo)
+        if not edited:
+            return jsonify({"message": "No changes made", "status": "error"}), 404
+        
+        return jsonify({"message": "Todo edited successfully", "status": "success"})
 
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500

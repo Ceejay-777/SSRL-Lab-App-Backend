@@ -55,51 +55,56 @@ def logout():
 
 @auth_bp.post('/forgot_password')
 def forgot_password():
-    uid = request.json.get("uid")
-    email = request.json.get("email")
-    user = User_db.get_user_by_uid(uid)
-    
-    if not user:
-        return jsonify( {"message": "Please confirm that your username is correct!", "status": "danger"}), 403
-    
-    if not user.get("email", None) == email:
-         return jsonify( {"message": "Please confirm that your username is correct!", "status": "danger"}), 403
-    
-    otp = generate.OTP()
-    dtl = {'otp': otp, 'expiry': (datetime.now() + timedelta(days=1))}
-    set_otp = User_db.update_dtl(uid, {'otp': dtl})
-    
-    if not set_otp:
-        return jsonify({'message': 'Could not send OTP right now. Please try again later', 'status': 'error'})
-    
-    # try:
-    #     msg = Message('SSRL Password Recovery', recipients = [email])
-    #     msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
+    try:
+        uid = request.json.get("uid")
+        email = request.json.get("email")
+        user = User_db.get_user_by_uid(uid)
         
-    #     mail.send(msg)
+        if not user:
+            return jsonify( {"message": "Please confirm that your username is correct!", "status": "danger"}), 403
         
-    #     print(otp)
+        if not user.get("email", None) == email:
+            return jsonify( {"message": "Please confirm that your email is correct!", "status": "danger"}), 403
         
-    #     response = {
-    #         "message": "OTP sent successfully",
-    #         "otp": otp, 
-    #         "status" : "success",
-    #     }
+        otp = generate.OTP()
+        dtl = {'otp': otp, 'expiry': (datetime.now() + timedelta(days=1))}
+        set_otp = User_db.update_dtl(uid, {'otp': dtl})
         
-    #     return jsonify(response), 200
+        if not set_otp:
+            return jsonify({'message': 'Could not send OTP right now. Please try again later', 'status': 'error'}), 500
     
-    # except Exception as exp:
-    #     response = {
-    #         "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
-    #         "status": "danger",
-    #         "error": str(exp),
+        msg = Message('SSRL Password Recovery', recipients = [email])
+        msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
+        
+        mail.send(msg)
+        
+        print(otp)
+        print(email)
+        
+        response = {
+            "message": "OTP sent successfully",
+            "otp": otp, 
+            "status" : "success",
+        }
+        
+        return jsonify(response), 200
+    
+    except Exception as e:
+        # import traceback
+        # error = traceback.format_exc()
+        # print(error)
+        print(e)
+        response = {
+            "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
+            "status": "danger",
+            "error": str(e),
             
-    #     }
+        }
         return jsonify(response), 500
         
-    
 @auth_bp.post('/confirm/otp')
 def confirm_otp():
+    try:
         input_otp = request.json.get("otp")
         uid = request.json.get("uid")
         user = User_db.get_user_by_uid(uid)
@@ -110,26 +115,31 @@ def confirm_otp():
         otp = user.get('otp', {}).get('otp', None)
         otp_expiry = user.get('otp', {}).get('expiry', None)
         
-        if otp and input_otp == otp and otp_expiry < datetime.now():
+        if otp and input_otp == otp and otp_expiry > datetime.now():
             return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 
         
         else:
             return jsonify({"message": "Invalid OTP!", "status" : "danger"}), 401
+        
+    except Exception as e:
+        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 
-@auth_bp.post('/change/password')
+@auth_bp.patch('/change_password')
 def change_password():
     new_pwd = request.json.get("new_pwd")
+    print(new_pwd)
     uid = request.json.get('uid')
     
     try: 
         hashed_pwd = generate_password_hash(new_pwd)
-        dtls = {"pwd": hashed_pwd}
+        dtls = {"hashed_pwd": hashed_pwd}
         updated = User_db.update_dtl(uid, dtls)
         
         if not updated:
-            return jsonify({'message': 'Could not change your password right now. Please try again later', 'status': 'error'})
+            return jsonify({'message': 'Could not change your password right now. Please try again later', 'status': 'error'}), 500
             
         return jsonify({"message": f"Password changed successfully!", "status" : "success"}), 200 
+    
     except Exception as e:
         print(e)
         return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
