@@ -44,7 +44,7 @@ def mark_as_read(id):
         # if not marked:
         #     return jsonify({"message": "Notification not found", "status": "error"}), 404
         
-        return jsonify({"message": "Notification marked as read", "status": "success"})
+        return jsonify({"message": "Notification marked as read", "status": "success"}), 200
     
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
@@ -59,7 +59,7 @@ def mark_all_as_read():
         if not marked:
             return jsonify({"message": "Somethig went wrong, try again", "status": "error"}), 404
         
-        return jsonify({"message": "All notifications marked as read", "status": "success"})
+        return jsonify({"message": "All notifications marked as read", "status": "success"}), 200
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
 

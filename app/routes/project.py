@@ -296,8 +296,10 @@ def submit_project_link(project_id): # Add notification
         
         
 @project_bp.post('/project/send_announcement/<project_id>')
+@jwt_required()
 def send_project_announcement(project_id):
     try:    
+        uid = get_jwt_identity()
         if (not Project_db.project_exists(project_id)):
             return jsonify({"message": "Invalid project id", "status": "error"}), 400
         
@@ -308,6 +310,7 @@ def send_project_announcement(project_id):
         leads = Project_db.get_project_leads(project_id)
         
         recepient = (leads, all)[receivers == "all"]
+        recepient.append(uid)
         
         not_title = f"New Project Announcement: {Project_db.get_project_name(project_id)}"
         not_receivers = recepient
