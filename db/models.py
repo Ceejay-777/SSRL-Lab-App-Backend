@@ -74,13 +74,22 @@ class Notificationsdb:
         return self.collection.insert_one(dtls.__dict__).inserted_id
     
     def get_by_isMember(self, uid):
-        return self.collection.find({'receivers' : uid})
+        return self.collection.find({'receivers' : uid}).sort("sentAt", DESCENDING)
     
     def get_by_isMember_limited(self, uid):
-        return self.collection.find({'receivers' : uid}).limit(3)
+        return self.collection.find({'receivers' : uid}).sort("sentAt", DESCENDING).limit(3)
     
-    # Get all notifications for a particular user
+    def mark_as_read(self, note_id):
+        return self.collection.update_one({"_id": ObjectId(note_id)}, {"$set": {"status": "read"}}).modified_count>0
     
+    def mark_all_as_read(self, uid):
+        return self.collection.update_many({'receivers' : uid}, {"$set": {"status": "read"}}).modified_count>0
+    
+    def get_unread_count(self, uid):
+        return self.collection.count_documents({"receivers": uid, "status": "unread"})
+    
+    def delete_notification(self, note_id):
+        return self.collection.delete_one({"_id": ObjectId(note_id)}).deleted_count>0
     
 class Todosdb:
     def __init__(self) -> None:
