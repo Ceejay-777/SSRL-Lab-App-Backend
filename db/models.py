@@ -481,7 +481,7 @@ class Sessionsdb:
     
 class generate:   
     def password():
-        password_length = int(12)
+        password_length = int(6)
         characters = string.ascii_letters + string.digits
         password = ""   
         for index in range(password_length):
