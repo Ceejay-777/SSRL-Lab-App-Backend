@@ -42,6 +42,7 @@ def home():
             reports = list(Report_db.get_all_limited())
         elif user_role == "Lead":
             projects = list(Project_db.get_by_stack_limited(stack))
+            reports = list(Report_db.get_by_isMember_limited(uid))
         else:
             projects = list(Project_db.get_by_isMember_limited(uid))
             reports = list(Report_db.get_by_isMember_limited(uid))
