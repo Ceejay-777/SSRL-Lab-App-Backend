@@ -23,17 +23,35 @@ def convert_to_json_serializable(doc):
                 doc[k] = convert_to_json_serializable(v)
     return doc
 
+def get_resource_type(filename):
+    extension = filename.lower().split('.')[-1] if '.' in filename else ''
+    
+    if extension in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'tiff']:
+        return 'image'
+    elif extension in ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mkv', 'webm']:
+        return 'video'
+    elif extension in ['pdf', 'doc', 'docx', 'txt', 'csv', 'xls', 'xlsx']:
+        return 'raw'
+    else:
+        return 'raw'
+
 def upload_func(file, folder):
     _, file_extension = os.path.splitext(file.filename)
-    public_id = f"{folder}/{uuid4()}{file_extension.lower()}"
+    type = get_resource_type(file.filename)
+    public_id = f"{folder}/{uuid4()}"
     upload_options = {
             "public_id": public_id,  
             "unique_filename": False,  
-            "resource_type": "raw",  
+            "resource_type": type,  
             "use_filename": False,    
             "overwrite": True      
         }
-    return upload(file, asset_folder=folder, upload_preset="intern_submissions", **upload_options)
+    
+    if type == 'raw':
+            _, file_extension = os.path.splitext(file.filename)
+            upload_options["public_id"] = f"{public_id}{file_extension.lower()}"
+            
+    return upload(file, asset_folder=folder, upload_preset="upload_test", **upload_options)
     
 def get_date_now():
     now = datetime.now().strftime

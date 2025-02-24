@@ -232,20 +232,21 @@ def create_user():
             return jsonify({"message": "Unable to create user at the moment. Please try again", "status" : "danger"}), 500
         
         response = convert_to_json_serializable({"message" : f"user {uid} created successfully. {avatar_msg}", "user_id" : str(user_id), "status" : "success"})
+        
+        try:
+            msg = Message('SSRL Login credentials', recipients = [email])
+            msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
+            
+            mail.send(msg)
+        
+            response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
+            
+            return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
+        except Exception as e:
+            print(e)
+        
         return jsonify(response)
-        
-    #     try:
-    #         msg = Message('SSRL Login credentials', sender = 'covenantcrackslord03@gmail.com', recipients = [email])
-    #         msg.body = f"Welcome to SSRL🤗 \nCheck out your login credentials below\n\nUnique I.D: {uid} \nPassword: {pwd}  \n\n\nFrom SSRL Team"
-            
-    #         mail.send(msg)
-        
-    #         response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
-            
-    #         return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
-    #     except Exception as e:
-    #         print(e)
-        
+    
     except Exception as e:
         print(e)
         return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "danger"}), 500
