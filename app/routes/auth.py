@@ -140,7 +140,7 @@ def change_password():
         
         updated = User_db.update_user(uid, details)
         if not updated['success']:
-            print(updated['message'])
+            print(updated['error'])
             return jsonify({'message': 'Could not change your password right now. Please try again later', 'status': 'error'}), 500
             
         return jsonify({"message": f"Password changed successfully!", "status" : "success"}), 200 

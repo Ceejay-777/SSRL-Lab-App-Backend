@@ -1,7 +1,9 @@
 from main import app
 from models.models import Requestdb
+from models.user import Userdb  
 
 Request_db = Requestdb()
+User_db = Userdb()
 
 # def update_request_time():
 #     Request_db.update_many_reqs()
@@ -19,6 +21,18 @@ def verify_smtp_connection():
         print("SMTP connection successful")
     except Exception as e:
         print(f"SMTP connection failed: {str(e)}")
+        
+def update_user_stacks():
+    all_users = list(User_db.get_all_users())
+    count = 0
     
-# verify_smtp_connection()
+    for user in all_users:
+        stack = user['stack']
+        uid = user['uid']
+        
+        User_db.update_user(uid, {"stack": stack.lower()})
+        count += 1
+        
+    return count
+        
 

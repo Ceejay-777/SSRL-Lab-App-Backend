@@ -39,7 +39,7 @@ def create_project():
         team_avatars = []
         
         for lead in leads:
-            profile = User_db.get_user_by_uid(lead['id'])
+            profile = User_db.get_user_by_uid(lead["id"])
             if not profile:
                 continue
             
@@ -60,11 +60,12 @@ def create_project():
             
         project_id = get_la_code('pjt')
            
-        project = Project(project_id=project_id, name=name, description=description, objectives=objectives, leads=leads, team_members=team_members, team_avatars=team_avatars, stack=stack, created_at=uid, deadline=deadline) 
+        project = Project(project_id=project_id, name=name, description=description, objectives=objectives, leads=leads, team_members=team_members, team_avatars=team_avatars, stack=stack, deadline=deadline, created_by=uid) 
         
         project_created = Project_db.create_project(project)
         if not project_created:
             response = convert_to_json_serializable({"message" : "Unable to create project. Please try again", "status" : "error"})
+            return jsonify(response), 500
         
         not_title = "New Project"
         not_receivers = leads + team_members
@@ -74,18 +75,20 @@ def create_project():
         
         response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
         Notifications.send_notification(notification)
+        return jsonify(response), 200
             
     except Exception as e:
-        return jsonify({return_error(e)}), 500
+        return jsonify(return_error(e)), 500
 
 @project_bp.get('/get/<project_id>')
 @jwt_required()
 def view_project(project_id):
     try:
+        print(project_id)
         project = Project_db.get_by_project_id(project_id)
         
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
             
         response = convert_to_json_serializable({"project": project, "status": "success", "message": "Project fetched successfully"})
         return jsonify(response), 200
@@ -107,7 +110,9 @@ def get_all_projects():
             projects = list(Project_db.get_by_stack(stack))
         else: projects = list(Project_db.get_by_isMember(uid))
         
-        response = convert_to_json_serializable({"projects": projects, "status": "success", "message": "Projects fetched successfully"})
+        total_projects = len(projects)
+        
+        response = convert_to_json_serializable({"projects": projects, "status": "success", "message": "Projects fetched successfully", "total_projects": total_projects})
         return jsonify(response), 200
     
     except Exception as e:
@@ -120,7 +125,7 @@ def mark_project_completed(project_id):
         project = Project_db.get_by_project_id(project_id)
         
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         name = project.get('name')
         members = project['leads'] + project['team_members']
@@ -156,8 +161,9 @@ def mark_project_incompleted(project_id):
         name = project.get('name')
         members = project['leads'] + project['team_members']
         members = [member['id'] for member in members]
+        status = project['status']
         
-        if (project['status'] == 'incompleted'):
+        if (status == 'incompleted'):
             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         
         marked = Project_db.mark_project(project_id, "incompleted")
@@ -182,13 +188,14 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
     try:
         data = request.json
         uid = get_jwt_identity()
-        role = get_jwt['user_role']
+        role = get_jwt()['user_role']
         
         project = Project_db.get_by_project_id(project_id)
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         leads = project['leads']
+        leads = [lead['id'] for lead in leads]
         team_members = project['team_members']
         name = project['name']
         
@@ -209,7 +216,7 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
         return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({return_error(e)}), 500
+        return jsonify(return_error(e)), 500
     
 @project_bp.delete('/delete/<project_id>')
 @jwt_required()
@@ -219,7 +226,7 @@ def delete_project(project_id):
         
         project = Project_db.get_by_project_id(project_id)
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         name = project['name']
         members = project['leads'] + project['team_members']
@@ -246,7 +253,7 @@ def delete_project(project_id):
 def submit_project_doc(project_id): 
     try:
         uid = get_jwt_identity()
-        submission = request.files["file"]
+        submission = request.files["doc"]
         filename = secure_filename(submission.filename)
         
         if not submission:
@@ -260,7 +267,7 @@ def submit_project_doc(project_id):
         
         project = Project_db.get_by_project_id(project_id)
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         name = project['name']
         members = project['leads'] + project['team_members']
@@ -296,6 +303,7 @@ def submit_project_doc(project_id):
         return jsonify(return_error(e)), 500
     
 @project_bp.patch('/submit_link/<project_id>') # Validate link input on frontend
+@jwt_required()
 def submit_project_link(project_id): 
     try:    
         uid = get_jwt_identity()
@@ -305,13 +313,13 @@ def submit_project_link(project_id):
         
         project = Project_db.get_by_project_id(project_id)
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         name = project['name']
         members = project['leads'] + project['team_members']
         members = [member['id'] for member in members]
         
-        link_submission = {"title": title, "link": link, "date_submitted": get_date_now()}
+        link_submission = {"title": title, "link": link, "date_submitted": datetime.now()}
         submitted = Project_db.submit_link(project_id, link_submission)
         
         if not submitted:
@@ -363,7 +371,7 @@ def send_project_announcement(project_id):
     except Exception as e:
         return jsonify(return_error(e)), 500
     
-@project_bp.post('/project/send_feedback/<project_id>') 
+@project_bp.patch('/send_feedback/<project_id>') 
 @jwt_required()
 def send_feedback(project_id):
     try:
@@ -375,7 +383,7 @@ def send_feedback(project_id):
         
         project = Project_db.get_by_project_id(project_id)
         if not project:
-            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         name = project['name']
         members = project['leads'] + project['team_members']

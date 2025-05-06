@@ -10,46 +10,40 @@ class Projectdb:
         return self.collection.insert_one(project.__dict__).inserted_id
         
     def get_all(self):
-        return self.collection.find({'deleted_at': {'exists': False}}).sort("created_at", DESCENDING)
+        return self.collection.find({'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING)
     
     def get_all_limited(self):
-        return self.collection.find({'deleted_at': {'exists': False}}).sort("created_at", DESCENDING).limit(4)
+        return self.collection.find({'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING).limit(4)
     
     def get_by_isMember_limited(self, uid):
         return self.collection.find({'$or': [
-               {'leads': uid,},
-               {'team_members': uid}
-           ], 'deleted_at': {'exists': False}}).sort('created_at', DESCENDING).limit(4)
+               {'leads.id': uid,},
+               {'team_members.id': uid}
+           ], 'deleted_at': {'$exists': False}}).sort('created_at', DESCENDING).limit(4)
     
     def get_by_isMember(self, uid):
         return self.collection.find({'$or': [
-               {'leads': uid},
-               {'team_members': uid}
-           ], 'deleted_at': {'exists': False}}).sort('created_at', DESCENDING)
+               {'leads.id': uid},
+               {'team_members.id': uid}
+           ], 'deleted_at': {'$exists': False}}).sort('created_at', DESCENDING)
     
     def existing_project_name(self, name):
         return self.collection.find_one({"name": name})
         
     def get_by_project_id(self, project_id):
-        return self.collection.find_one({"project_id": project_id, 'deleted_at': {'exists': False}})
+        return self.collection.find_one({"project_id": project_id, 'deleted_at': {'$exists': False}})
     
     def submit_doc(self, project_id, doc):
-        return self.collection.update_one({'_id': project_id}, {'$push': {'submissions.docs': doc}}).modified_count > 0
+        return self.collection.update_one({'project_id': project_id}, {'$push': {'submissions.docs': doc}}).modified_count > 0
     
     def submit_link(self, project_id, link):
-        return self.collection.update_one({'_id': project_id}, {'$push': {'submissions.links': link}}).modified_count > 0
-        
-    def get_by_sender(self, uid): # Remove
-        return self.collection.find({"sender": "uid"}).sort("created_at", DESCENDING)
-    
-    def get_by_sender_limited(self, _id, uid): # Remove
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("created_at", DESCENDING).limit(4)
+        return self.collection.update_one({'project_id': project_id}, {'$push': {'submissions.links': link}}).modified_count > 0
     
     def get_by_stack_limited(self, stack):
         return self.collection.find({"stack" : stack}).sort("created_at", DESCENDING).limit(4)
     
     def get_by_stack(self, stack):
-        return self.collection.find({"stack" : stack, 'deleted_at': {'exists': False}}).sort("created_at", DESCENDING)
+        return self.collection.find({"stack" : stack, 'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING)
     
     def update_project_details(self, project_id, details):
         return self.collection.update_one({"project_id": project_id}, {"$set":details}).modified_count>0

@@ -49,7 +49,7 @@ def upload_func(file, folder):
             _, file_extension = os.path.splitext(file.filename)
             upload_options["public_id"] = f"{public_id}{file_extension.lower()}"
             
-    return upload(file, asset_folder=folder, upload_preset="upload_test", **upload_options)
+    return upload(file, asset_folder=folder, upload_preset="intern_submissions", **upload_options)
     
 def get_date_now():
     now = datetime.now().strftime
