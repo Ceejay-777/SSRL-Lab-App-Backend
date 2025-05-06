@@ -1,5 +1,5 @@
 from main import app
-from db.models import Requestdb
+from models.models import Requestdb
 
 Request_db = Requestdb()
 

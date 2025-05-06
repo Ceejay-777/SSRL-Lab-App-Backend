@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db.models import Userdb, Reportdb, Requestdb, Projectdb, Todosdb, Notificationsdb, AllowedExtension, ActivityReport, ProjectReport
+from models.models import Userdb, Reportdb, Requestdb, Projectdb, Todosdb, Notificationsdb, AllowedExtension, ActivityReport, ProjectReport
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime

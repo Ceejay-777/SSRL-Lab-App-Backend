@@ -1,7 +1,7 @@
 import base64
 from bson import ObjectId
 from datetime import datetime
-from db.models import Sessionsdb
+from models.models import Sessionsdb
 from cloudinary.uploader import upload
 from flask_jwt_extended import get_jwt  
 from functools  import wraps
@@ -104,4 +104,9 @@ def check_file_size(file, max_size_mb = 1):
     size_mb = size_bytes / (1024 * 1024)  
     
     return size_mb < max_size_mb
+
+def return_error(error_message):
+    import traceback
+    traceback.print_exc()
+    return {'message': f'An error occurred: {str(error_message)}', 'status': 'error'}
         

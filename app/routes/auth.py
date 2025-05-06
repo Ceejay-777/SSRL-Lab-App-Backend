@@ -1,52 +1,60 @@
 from flask import Blueprint, request, jsonify
-from db.models import Userdb, generate, updatePwd
+from models.models import Userdb, generate, updatePwd
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
-from funcs import convert_to_json_serializable
+from funcs import convert_to_json_serializable, return_error
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from flask_mail import Message
 from app.extensions import mail
 from datetime import datetime, timedelta
+from models.user import User, Userdb
 
 auth_bp = Blueprint('auth', __name__)
-
 User_db = Userdb()
+
+
+@auth_bp.get('/test')
+def test():
+    return jsonify({"message": "Hello World", "status": "success"}), 200
 
 @auth_bp.post('/login')
 def login():
-    user_uid = request.json.get("user_uid")
-    pwd = request.json.get("pwd")
-    user_profile = User_db.get_user_by_uid(user_uid)
-    
-    if not user_profile:
-        return {"message": "Invalid login ID", "status" : "danger"}, 401
-    
-    if user_profile["deleted"] == "True":
-        return jsonify({"message": "Could not find user with the inputted credentials.", "status": "error"}), 404
-    
-    if user_profile["suspended"] == "True":
-        return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
-    
-    authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
-    if not authenticated:
-        return {"message": "Invalid password","status" : "danger"}, 401
+    try:
+        data = request.json
+        user_uid = data.get("user_uid")
+        password = data.get("password")
         
-    user_profile = convert_to_json_serializable(user_profile)
-    
-    extra_claims = {
-        "user_id": user_profile['_id'],
-        "user_role":  user_profile['role'],
-        "stack":  user_profile['stack']
+        user_profile = User_db.get_user_by_uid(user_uid)
+        if not user_profile:
+            return {"message": "Intern with UID {user_uid} not found", "status" : "error"}, 401
+        
+        if user_profile["suspended"] == "True":
+            return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
+        
+        authenticated = check_password_hash(user_profile["hashed_pwd"], password)
+        if not authenticated:
+            return {"message": "Invalid password", "status" : "error"}, 401
+            
+        user_profile = convert_to_json_serializable(user_profile)
+        fullname = user_profile['surname'] + ' ' + user_profile['firstname']
+        
+        extra_claims = {
+            "user_id": user_profile['_id'],
+            "uid": user_profile['uid'],
+            "user_role":  user_profile['role'],
+            "stack":  user_profile['stack']
+            }
+        
+        access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
+        
+        response = {
+            "message": f"Welcome! {fullname}",
+            "status" : "success",
+            "user_profile": user_profile,
+            "access_token": access_token
         }
-    
-    access_token = create_access_token(identity=user_uid, additional_claims=extra_claims)
-    
-    response = {
-        "message": f"Welcome! {user_profile['fullname']}",
-        "status" : "success",
-        "user_profile": user_profile,
-        "access_token": access_token
-    }
-    return response, 200
+        return response, 200
+    except Exception as e:
+        return return_error(e), 500
 
 @auth_bp.get('/logout')
 @jwt_required()
@@ -56,15 +64,16 @@ def logout():
 @auth_bp.post('/forgot_password')
 def forgot_password():
     try:
-        uid = request.json.get("uid")
-        email = request.json.get("email")
+        data = request.json
+        uid = data.get("uid")
+        email = data.get("email")
+        
         user = User_db.get_user_by_uid(uid)
-        
         if not user:
-            return jsonify( {"message": "Please confirm that your username is correct!", "status": "danger"}), 403
-        
+                return {"message": "Intern with UID {user_uid} not found", "status" : "error"}, 401        
+            
         if not user.get("email", None) == email:
-            return jsonify( {"message": "Please confirm that your email is correct!", "status": "danger"}), 403
+            return jsonify( {"message": "Please confirm that the provided email is correct!", "status": "error"}), 403
         
         otp = generate.OTP()
         dtl = {'otp': otp, 'expiry': (datetime.now() + timedelta(days=1))}
@@ -96,7 +105,7 @@ def forgot_password():
         print(e)
         response = {
             "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
-            "status": "danger",
+            "status": "error",
             "error": str(e),
             
         }
@@ -110,7 +119,7 @@ def confirm_otp():
         user = User_db.get_user_by_uid(uid)
         
         if not user:
-            return jsonify( {"message": "Please confirm that your username is correct!", "status": "danger"}), 403
+            return jsonify( {"message": "Please confirm that your username is correct!", "status": "error"}), 403
         
         otp = user.get('otp', {}).get('otp', None)
         otp_expiry = user.get('otp', {}).get('expiry', None)
@@ -119,7 +128,7 @@ def confirm_otp():
             return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 
         
         else:
-            return jsonify({"message": "Invalid OTP!", "status" : "danger"}), 401
+            return jsonify({"message": "Invalid OTP!", "status" : "error"}), 401
         
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
@@ -142,4 +151,4 @@ def change_password():
     
     except Exception as e:
         print(e)
-        return jsonify({"message": f"Something went wrong! Please, try again", "status" : "danger"}), 500
+        return jsonify({"message": f"Something went wrong! Please, try again", "status" : "error"}), 500

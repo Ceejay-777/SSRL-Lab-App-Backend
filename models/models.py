@@ -3,68 +3,9 @@ from properties import *
 import os
 import string, random
 from datetime import datetime, timedelta
-from db import *
+from models import *
 from pymongo import DESCENDING, ASCENDING
 
-class Userdb:
-    def __init__(self) -> None:
-        self.collection =  Users
-
-    def create_user(self, usr):
-        return self.collection.insert_one(usr.__dict__).inserted_id
-        
-    def get_user_by_role(self, role):
-        return self.collection.find({"role": role, "deleted": "False"})
-    
-    def get_user_fullname(self, uid):
-        user = self.collection.find_one({"uid" : uid})
-        return user["fullname"]
-    
-    def get_user_by_role_one(self, role):
-        return self.collection.find_one({"role": role})
-    
-    def get_user_by_uid(self, user_uid):
-        return self.collection.find_one({"uid": user_uid})
-    
-    def get_user_by_oid(self, user_id):
-        return self.collection.find_one({"_id": ObjectId(user_id)})
-    
-    def update_dtl(self, user_id, dtls):
-        return self.collection.update_one({"uid":user_id},{"$set": dtls}).modified_count>0
-    
-    def delete_user(self, id, dtls):
-        return self.collection.update_one({"uid":id}, {"$set": dtls}).modified_count>0
-    
-    def get_all_users(self):
-        return self.collection.find().sort("uid")
-    
-    def get_all_users_limited(self):
-        return self.collection.find().limit(4)
-    
-    def get_lead(self, stack):
-        return self.collection.find_one({"role":"Lead", "stack":stack})
-    
-    def get_users_by_stack(self, stack):
-        return self.collection.find({"stack":stack}).sort("uid")
-    
-    def get_users_by_stack_limited(self, stack):
-        return self.collection.find({"stack":stack}).limit(4)
-    
-    # def update_user(self, user_id, dtls):
-    #     return self.collection.update_one({"uid":user_id},{"$set":dtls}).modified_count>0
-    
-    def update_user(self, user_id, dtls):
-        try:
-            result = self.collection.update_one({"uid": user_id}, {"$set": dtls})
-            
-            if result.matched_count == 0:
-                return {"success": False, "error": "No user found with the given UID"}
-            if result.modified_count == 0:
-                return {"success": False, "error": "No changes were made to the document"}
-            return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
 class Notificationsdb:
     def __init__(self):
         self.collection = Notifications
@@ -422,26 +363,6 @@ class Attendancedb:
     
     def get_attendance(self, user_id):
         return self.collection.find({"user_id": user_id}).sort("date_time", -1).limit(3)
-     
-
-class Attendancedb_v2:
-    def __init__(self) -> None:
-        self.collection = Attendance_v2
-    
-    def sign_in(self, dtls):
-        return self.collection.insert_one(dtls).inserted_id
-    
-    def sign_out(self, attendance_id, time_out, status):
-        return self.collection.update_one({"_id":ObjectId(attendance_id)},{"$set":{"time_out": time_out, "status": status}}).modified_count>0
-    
-    def get_attendance(self, user_id):
-        return self.collection.find({"user_id": user_id}).sort("date_time", -1).limit(3)
-     
-    def get_user_attendance_by_date(self, user_uid, date):
-        return self.collection.find({"user_uid": user_uid, "date":date})
-    
-    def get_marked_in_users(self, date):
-        return self.collection.find({"date": date, "status": "in"}).sort("date_time", -1)
     
 class Sessionsdb:
     def __init__(self) -> None:
@@ -526,28 +447,6 @@ class generate:
             
         return otp
     
-class User:
-    def __init__(self, firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar, task_id, bio, location, bday, datetime_created, suspended="False", deleted="False") -> None:
-        self.firstname = firstname
-        self.surname = surname
-        self.fullname = fullname
-        self.hashed_pwd = hashed_pwd
-        self.uid = uid
-        self.stack = stack
-        self.niche = niche
-        self.role = role
-        self.phone_num = phone_num
-        self.email = email
-        self.mentor_id = mentor_id
-        self.avatar = avatar
-        self.task_id = task_id   
-        self.datetime_created = datetime_created
-        self.bio = bio
-        self.location = location
-        self.bday = bday
-        self.suspended = suspended
-        self.deleted = deleted
-        
 class Notification:
     def __init__(self, title, receivers, type, message, status="unread", sentAt=None) -> None:
         self.title = title

@@ -2,7 +2,7 @@ from flask import Flask, session, render_template, redirect, url_for, request, f
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from flask_mail import Mail, Message
 from flask_cors import CORS, cross_origin
-from db.models import *
+from models.models import *
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from io import BytesIO
@@ -14,6 +14,7 @@ import json
 from flask_mail import Message
 from main import app
 from app.extensions import mail
+from models.user import User, Userdb
 
 import urllib.request
 from auth import authenticate_user_for_attendance, decrypt
@@ -29,10 +30,9 @@ Report_db = Reportdb()
 Project_db = Projectdb()
 Todos_db = Todosdb()
 Attendance_db  = Attendancedb()
-Attendance_db_v2  = Attendancedb_v2()
 Sessions_db = Sessionsdb()
 
-    
+
 @app.before_request
 def clean_up_sessions():
     Sessions_db.expire_sessions()
@@ -2612,177 +2612,5 @@ def mark_atendance():
                 return redirect(url_for('home'))
 
     else:
-        # flash  ('you are not logged in!', "danger")
-        # return redirect(url_for('login')) 
         return jsonify({"message" : 'You are not logged in!', "status" : "info"})
         
-
-@app.post('/api/user/attendance')
-def mark_atendance_api():
-        
-        body = request.get_json()
-        date_time = datetime.now()
-        user_uid = body["user_uid"]
-        scanned_data = body["scanned_data"]
-        pwd = body["pwd"]
-        app.logger.info(user_uid)
-        app.logger.info(scanned_data)
-        app.logger.info(pwd)
-        
-        scanned_date_time, encrypted_secret_key = scanned_data.split(",") 
-        secret_key = decrypt(encrypted_secret_key)
-        app.logger.info(date_time)
-        
-        app.logger.info(secret_key)
-        app.logger.info(SSRL_SECTRET_KEY)
-        date = scanned_date_time.split(" ")
-        app.logger.info(date[0])   
-        original_datetime = datetime.fromisoformat(str(date_time))
-        
-        formatted_datetime_str = original_datetime.strftime("%Y-%m-%d")
-        
-        if secret_key == SSRL_SECTRET_KEY and date[0] == formatted_datetime_str:
-            authenticated = authenticate_user_for_attendance(user_uid, pwd)    
-            
-            if not authenticated:
-                return jsonify({
-                    "success": False,
-                    "response": "Failed authentication"
-                }), 401
-                
-            
-            user = list(Attendance_db_v2.get_user_attendance_by_date(user_uid, date_time.strftime("%x")))      
-                
-            app.logger.info(user)
-            if user:
-                attendance_id = user[0]["_id"]
-                                        
-                try:
-                    Attendance_db_v2.sign_out(attendance_id, date_time.strftime("%X"), status = "out")
-                
-                    app.logger.info(f'{user_uid} Marked out')
-                    
-                    return jsonify({
-                        "success": True,
-                        "response": "Marked out"
-                    }), 200
-                except:
-                    app.logger.warning("Failed to mark user out!")
-                    return jsonify({
-                        "success": False,
-                        "response": "Server error"
-                    }), 500
-                    
-            else:
-                app.logger.info("marking...")
-                
-                try:
-                    attendance_id = Attendance_db_v2.sign_in({"user_uid": user_uid, "date_time":date_time, "date": date_time.strftime("%x"), "time_in": date_time.strftime("%X"), "time_out":"", "status": "in"})
-                    app.logger.info(f'{user_uid} Marked in')
-                    
-                    return jsonify({
-                        "success": True,
-                        "response": "Marked in"
-                    }), 200
-                except:
-                    app.logger.warning("Failed to mark user in!")
-                    return jsonify({
-                        "success": False,
-                        "response": "Server error"
-                    }), 500
-                
-        else:
-            return jsonify({
-                "success": False,
-                "response": "Invalid data"   
-            }), 401
-   
-        
-@app.post('/api/user/login')
-def api_authenticate_user():
-    body = request.get_json()
-    
-    user_uid = body["user_uid"]
-    pwd = body["pwd"]
-    date_time = datetime.now()
-    date = date_time.strftime("%x")
-    authenticated = authenticate_user_for_attendance(user_uid, pwd)
-    
-    marked_in_users = Attendance_db_v2.get_marked_in_users(date)
-    app.logger.info(list(marked_in_users))
-    if authenticated:
-        return jsonify({
-            "success": True,
-            "response": "Authenticated"
-        }), 200
-    else:
-        return jsonify({
-            "success": False,
-            "response": "Unauthorized"
-        }), 401
-        
-        
-@app.get('/api/users')
-def marked_in_users():
-    date_time = datetime.now()
-    date = date_time.strftime("%x")
-    
-    try:
-        marked_in_users = formatAttendance(list(Attendance_db_v2.get_marked_in_users(date)))
-        app.logger.info(marked_in_users)
-        
-        return jsonify({
-            "success": True,
-            "response": marked_in_users
-        }), 200
-    except:
-        return jsonify({
-            "success": False,
-            "response": "Server error"
-        }), 500
-        
-@app.post("/upload_file")
-def upload_file(): 
-    if 'file' not in request.files:
-        return "No file part", 400
-    file = request.files['file']
-    if file.filename == '':
-        return "No selected file", 400
-    print("File: ", file)
-    response = upload_file_func(file.read(), "test")
-    return response['secure_url'] 
-
-#uploaded = uploader.upload(project, folder="smart_app/projects", resource_type="raw")
-
-@app.post('/test_image_single')
-def testImage():
-    image = request.files.get('image')
-    # print(request.files)
-    print(image)
-    if not image:
-        return jsonify({'message': 'No image provided', 'status': 'error'}), 400
-
-    if not image.content_type.startswith('image/'):
-        return jsonify({'message': 'File is not an image', 'status': 'error'}), 400
-    
-    print(image.filename, image.content_type)
- 
-    try:
-        upload_result = upload_func(image, folder='hospital/logo', filename=image.filename)
-        print(upload_result)
-        image_url = upload_result['secure_url']
-    except Exception as e:
-        import traceback
-        print("Upload Error:", str(e))
-        print("Traceback:", traceback.format_exc())
-        return jsonify({
-            'message': f'Error uploading image: {str(e)}',
-            'status': 'error',
-            'detail': traceback.format_exc()
-        }), 500
-    
-    # print(image_url)
-    
-    return jsonify({'message': 'Image uploaded successfully', 'status': 'success'}), 200
-
-

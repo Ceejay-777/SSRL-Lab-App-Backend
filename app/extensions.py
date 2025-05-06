@@ -1,7 +1,15 @@
 from flask_mail import Mail
 import cloudinary
 from flask_jwt_extended import JWTManager
+from dotenv import load_dotenv
+import os
+from  pymongo import MongoClient
 
+load_dotenv()
+
+uri = os.getenv('MONGO_URI')
+
+mongo_client = MongoClient(uri)
 mail = Mail()
 jwt = JWTManager()
 

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db.models import Userdb, generate, updatePwd, Reportdb, Requestdb, Projectdb, Todosdb, Notificationsdb, Notification, AllowedExtension, User, Request, Todo
+from models.models import Userdb, generate, updatePwd, Reportdb, Requestdb, Projectdb, Todosdb, Notificationsdb, Notification, AllowedExtension, User, Request, Todo
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt

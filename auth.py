@@ -1,5 +1,5 @@
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
-from db.models import Userdb
+from models.models import Userdb
 
 User_db = Userdb()
 
