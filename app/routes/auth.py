@@ -11,7 +11,6 @@ from models.user import User, Userdb
 auth_bp = Blueprint('auth', __name__, url_prefix="/auth" )
 User_db = Userdb()
 
-
 @auth_bp.get('/test')
 def test():
     return jsonify({"message": "Hello World", "status": "success"}), 200
@@ -25,7 +24,7 @@ def login():
         
         user_profile = User_db.get_user_by_uid(user_uid)
         if not user_profile:
-            return {"message": "Intern with UID {user_uid} not found", "status" : "error"}, 401
+            return {"message": f"Intern with UID {user_uid} not found", "status" : "error"}, 401
         
         if user_profile["suspended"] == "True":
             return jsonify({"message": "This account has been suspended. Please contact the admin or your stack lead.", "status": "error"}), 401
@@ -91,9 +90,6 @@ def forgot_password():
         except Exception as e:
             print(return_error(e)['message'])
         
-        print(otp)
-        print(email)
-        
         response = {"message": "OTP sent successfully", "status" : "success",}
         
         return jsonify(response), 200
@@ -113,7 +109,7 @@ def confirm_otp():
         
         user = User_db.get_user_by_uid(uid)
         if not user:
-            return jsonify( {"message": "Intern with uid '{uid}' does not exist", "status": "error"}), 403
+            return jsonify( {"message": f"Intern with uid '{uid}' does not exist", "status": "error"}), 403
         
         otp = user.get('otp', {}).get('otp', None)
         otp_expiry = user.get('otp', {}).get('expiry', None)
@@ -124,7 +120,7 @@ def confirm_otp():
         if input_otp != otp:
             return jsonify({"message": "Invalid OTP", "status" : "error"}), 403
         
-        if otp_expiry > datetime.now():
+        if otp_expiry < datetime.now():
             return jsonify({"message": "OTP has expired", "status" : "error"}), 401 
         
         return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200

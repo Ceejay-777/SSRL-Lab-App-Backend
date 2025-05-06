@@ -48,8 +48,8 @@ class Projectdb:
     def get_by_stack_limited(self, stack):
         return self.collection.find({"stack" : stack}).sort("created_at", DESCENDING).limit(4)
     
-    def get_by_stack(self, stack, uid):
-        return self.collection.find({"$or" : [{"stack" : stack}, {"uid": uid}], 'deleted_at': {'exists': False}}).sort("created_at", DESCENDING)
+    def get_by_stack(self, stack):
+        return self.collection.find({"stack" : stack, 'deleted_at': {'exists': False}}).sort("created_at", DESCENDING)
     
     def update_project_details(self, project_id, details):
         return self.collection.update_one({"project_id": project_id}, {"$set":details}).modified_count>0

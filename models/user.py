@@ -1,4 +1,4 @@
-from models import Users, User
+from models import Users
 from datetime import datetime
 from bson import ObjectId
 

@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
-from models.models import Userdb, Reportdb, Requestdb, Projectdb, Todosdb, Notificationsdb, AllowedExtension, ActivityReport, ProjectReport
+from models.models import Reportdb, Requestdb, Todosdb, Notificationsdb, AllowedExtension, ActivityReport, ProjectReport
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
 from funcs import *
 from werkzeug.utils import secure_filename
+from models.user import Userdb
+from models.project import Projectdb
 
 report_bp = Blueprint('report', __name__)
 

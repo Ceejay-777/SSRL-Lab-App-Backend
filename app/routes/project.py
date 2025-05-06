@@ -33,8 +33,8 @@ def create_project():
         deadline = data.get("deadline")
         
         if Project_db.existing_project_name(name):
-            response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
-            return(response)
+            response = {"message" : f"Project with name '{name}' already exists.", "status": "error"}
+            return jsonify(response)
             
         team_avatars = []
         
@@ -78,7 +78,7 @@ def create_project():
     except Exception as e:
         return jsonify({return_error(e)}), 500
 
-@project_bp.get('/get_project/<project_id>')
+@project_bp.get('/get/<project_id>')
 @jwt_required()
 def view_project(project_id):
     try:
@@ -104,32 +104,34 @@ def get_all_projects():
         if user_role=="Admin":
             projects = list(Project_db.get_all())
         elif user_role == "Lead":
-            projects = list(Project_db.get_by_stack(stack, uid))
+            projects = list(Project_db.get_by_stack(stack))
         else: projects = list(Project_db.get_by_isMember(uid))
         
-        response = convert_to_json_serializable({"projects": projects, "status": "success"})
+        response = convert_to_json_serializable({"projects": projects, "status": "success", "message": "Projects fetched successfully"})
         return jsonify(response), 200
     
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
   
-@project_bp.patch('/project/completed/<project_id>')
+@project_bp.patch('/mark_as_completed/<project_id>')
 @jwt_required()
 def mark_project_completed(project_id):
     try:
         project = Project_db.get_by_project_id(project_id)
         
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
         
-        name = Project_db.get_project_name(project_id)
-        members = Project_db.get_project_members(project_id)
+        name = project.get('name')
+        members = project['leads'] + project['team_members']
         members = [member['id'] for member in members]
         
-        if (project['status'] == 'Completed'):
+        if (project['status'] == 'completed'):
             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
         
-        marked = Project_db.mark_project(project_id, "Completed")
+        marked = Project_db.mark_project(project_id, "completed")
+        if not marked:
+            return jsonify({"message" : 'An error occurred! Please try again', "status" : "danger"}), 500
         
         not_title = "Project Marked as Complete"
         not_receivers = members
@@ -137,32 +139,30 @@ def mark_project_completed(project_id):
         not_message = f"Project '{name}' has been marked as complete. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        if marked: 
-            Notifications.send_notification(notification)
-            return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        Notifications.send_notification(notification)
+        return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
-@project_bp.patch('/project/incomplete/<project_id>') 
+@project_bp.patch('/mark_as_incompleted/<project_id>')
 @jwt_required()
-def mark_project_incomplete(project_id):
+def mark_project_incompleted(project_id):
     try:
         project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
         
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
-        name = Project_db.get_project_name(project_id)
-        members = Project_db.get_project_members(project_id)
+        name = project.get('name')
+        members = project['leads'] + project['team_members']
         members = [member['id'] for member in members]
         
-        if (project['status'] == 'Uncompleted'):
+        if (project['status'] == 'incompleted'):
             return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         
-        marked = Project_db.mark_project(project_id, "Uncompleted")
+        marked = Project_db.mark_project(project_id, "incompleted")
+        if not marked:
+            return jsonify({"message" : 'An error occurred! Please try again', "status" : "danger"}), 500
         
         not_title = "Project Marked as Incomplete"
         not_receivers = members
@@ -170,193 +170,231 @@ def mark_project_incomplete(project_id):
         not_message = f"Project '{name}' has been marked as incomplete. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        if marked: 
-            Notifications.send_notification(notification)
-            return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        Notifications.send_notification(notification)
+        return jsonify({"message": 'Project marked as incomplete', "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
-
-@project_bp.patch('/project/edit/<project_id>') # Add notifications
-@jwt_required()
-def edit_project(project_id): # Who can edit a project? Name, description, objectives, team_members, leads, deadline
-    try:
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
-        data = request.json
-        print(data)
-        
-        updated = Project_db.update_project_dtls(project_id, data)
-        if updated:
-            return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
-        
-    except Exception as e:
-        import traceback
-        print("Traceback:", traceback.format_exc())
-        return {'message': f'Something went wrong: {str(e)}', 'status': 'error', 'traceback': traceback}, 500
-        # return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
-@project_bp.delete('/project/delete/<project_id>')
+@project_bp.patch('/edit/<project_id>') 
+@jwt_required()
+def edit_project(project_id): # Name, description, objectives, team_members, leads, deadline
+    try:
+        data = request.json
+        uid = get_jwt_identity()
+        role = get_jwt['user_role']
+        
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+        
+        leads = project['leads']
+        team_members = project['team_members']
+        name = project['name']
+        
+        if role != 'Admin' or uid not in leads:
+            return jsonify({"message": "You don't have permission to edit this project. Contact the leads on this project", 'status': 'error'})
+        
+        updated = Project_db.update_project_details(project_id, data)
+        if not updated:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        
+        not_title = "Project Edited"
+        not_receivers = leads + team_members
+        not_type = "Project"
+        not_message = f"Project '{name}' has been edited by {uid}. Check it out in your projects tab!"
+        notification = Notification(not_title, not_receivers, not_type, not_message)
+        
+        Notifications.send_notification(notification)
+        return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
+        
+    except Exception as e:
+        return jsonify({return_error(e)}), 500
+    
+@project_bp.delete('/delete/<project_id>')
 @jwt_required()
 def delete_project(project_id):
     try:
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        uid = get_jwt_identity()
         
-        name = Project_db.get_project_name(project_id)
-        members = Project_db.get_project_members(project_id)
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+        
+        name = project['name']
+        members = project['leads'] + project['team_members']
         members = [member['id'] for member in members]
-        deleted = Project_db.delete_project(project_id, name)
+        deleted = Project_db.delete_project(project_id)
             
+        if not deleted:
+            return jsonify({"message": 'The project could not be deleted. Please try again', "status" : "danger"}), 500
+        
         not_title = "Project Deleted"
         not_receivers = members
         not_type = "Project"
-        not_message = f"Project '{name}' has been deleted."
+        not_message = f"Project '{name}' has been deleted by {uid}."
         notification = Notification(not_title, not_receivers, not_type, not_message)
-            
-        if deleted:
-            Notifications.send_notification(notification)
-            return jsonify({"message": "Project deleted successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message": 'The project could not be deleted!', "status" : "danger"}), 500
+    
+        Notifications.send_notification(notification)
+        return jsonify({"message": "Project deleted successfully!", "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
 
-@project_bp.patch('/project/submit_doc/<project_id>')
+@project_bp.patch('/submit_doc/<project_id>')
 @jwt_required()
-def submit_project_doc(project_id): # Add notification
+def submit_project_doc(project_id): 
     try:
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
+        uid = get_jwt_identity()
         submission = request.files["file"]
         filename = secure_filename(submission.filename)
         
         if not submission:
-            return jsonify({"message": "No doc attached", "status": "error"}), 400
+            return jsonify({"message": "No document attached", "status": "error"}), 400
         
-        if not check_file_size(submission):
-            return jsonify({"message": "Doc size exceeds 1MB", "status": "error"}), 400
+        if not check_file_size(submission, max_size_mb=2):
+            return jsonify({"message": "Document size exceeds 2MB", "status": "error"}), 400
         
         if not AllowedExtension.files(filename):
-            return jsonify({"message": "Invalid doc type", "status": "error"}), 400                            
+            return jsonify({"message": "Invalid document type. Valid types are 'pdf', 'doc', 'docs','docx' and 'txt' ", "status": "error"}), 400        
+        
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+        
+        name = project['name']
+        members = project['leads'] + project['team_members']
+        members = [member['id'] for member in members]
         
         try:
             uploaded = upload_func(submission, f"SSRL_Lab_App/projects/{project_id}")
+            print(uploaded)
             
             if not uploaded:
-                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+                return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
 
-            print(uploaded)
-            project_submission = {"filename": filename, "download_link": uploaded["secure_url"], "date_submitted": datetime.now()}
+            project_submission = {"filename": filename, "download_link": uploaded["secure_url"], "submitted_at": datetime.now()}
             submitted = Project_db.submit_doc(project_id, project_submission)
                 
             if not submitted:
-                return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+                return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
             
         except Exception as e:
-            return jsonify({"message" : f"Couldn't upload your project at the moment! {e}", "status" : "danger"}),500
+            return jsonify({"message" : f"Couldn't upload your project at the moment! {e}", "status" : "error"}),500
         
-        return jsonify({"submission": project_submission, "status" : "success"}), 200
+        not_title = "Project Document Submission"
+        not_receivers = members
+        not_type = "Project"
+        not_message = f"A document: {filename} has been submitted for project '{name}' by {uid}."
+        notification = Notification(not_title, not_receivers, not_type, not_message)
+    
+        Notifications.send_notification(notification)
+        
+        return jsonify({"message": "Document submitted successfully", "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
-@project_bp.patch('/project/submit_link/<project_id>') # Validate link input on frontend
-def submit_project_link(project_id): # Add notification
+@project_bp.patch('/submit_link/<project_id>') # Validate link input on frontend
+def submit_project_link(project_id): 
     try:    
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
+        uid = get_jwt_identity()
         data = request.json
         title = data.get('title')
         link = data.get('link')
         
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+        
+        name = project['name']
+        members = project['leads'] + project['team_members']
+        members = [member['id'] for member in members]
+        
         link_submission = {"title": title, "link": link, "date_submitted": get_date_now()}
         submitted = Project_db.submit_link(project_id, link_submission)
         
-        if submitted:
-            return jsonify({"message": 'Project submitted successfully', "status" : "success"}), 200
-        else:
-            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
+        if not submitted:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
+        
+        not_title = "Project Link addition"
+        not_receivers = members
+        not_type = "Project"
+        not_message = f"A link has been added for project '{name}' by {uid}."
+        notification = Notification(not_title, not_receivers, not_type, not_message)
+    
+        Notifications.send_notification(notification)
+        
+        return jsonify({"message": 'Link submitted successfully', "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
         
-        
-@project_bp.post('/project/send_announcement/<project_id>')
+@project_bp.post('/send_announcement/<project_id>')
 @jwt_required()
 def send_project_announcement(project_id):
     try:    
         uid = get_jwt_identity()
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
-        
         announcement = request.json.get('announcement')
         receivers = request.json.get('receivers') 
         
-        all = Project_db.get_project_members(project_id)
-        leads = Project_db.get_project_leads(project_id)
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
+
+        name = project['name']
+        leads = project['leads']
+        members = project['team_members']
+        all = leads  + members
         
         recepient = (leads, all)[receivers == "all"]
         recepient.append(uid)
         
-        not_title = f"New Project Announcement: {Project_db.get_project_name(project_id)}"
+        not_title = f"New Project Announcement: {name}"
         not_receivers = recepient
         not_type = "Project"
         not_message = announcement
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        notification = Notification(not_title, not_receivers, not_type, not_message)
         
         Notifications.send_notification(notification)
 
         return jsonify({"message": "Announcement made successfully", "status" : "success"}), 200
 
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
 @project_bp.post('/project/send_feedback/<project_id>') 
 @jwt_required()
 def send_feedback(project_id):
     try:
+        uid = get_jwt_identity()
         feedback = request.json.get('feedback')
-        user_id = get_jwt_identity()
-        user_profile = User_db.get_user_by_uid(user_id)
         
-        sender = user_profile.get('fullname')
+        user = User_db.get_user_by_uid(uid)
+        sender = user.get('firstname') + " " + user.get('surname')
         
-        if (not Project_db.project_exists(project_id)):
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
         
-        all = Project_db.get_project_members(project_id)
-        project_name = {Project_db.get_project_name(project_id)}
+        name = project['name']
+        members = project['leads'] + project['team_members']
         
         send_feedback = Project_db.send_feedback(project_id, sender, feedback)
         if not send_feedback:
-            return jsonify({"message": "Could not send feedback right now! Try again", "status" : "danger"}), 500
+            return jsonify({"message": "Could not send feedback right now! Try again", "status" : "error"}), 500
         
-        not_title = f"New Project Feedback: {project_name}"
-        not_receivers = all
+        not_title = f"New Project Feedback: {name}"
+        not_receivers = members
         not_type = "Project"
-        not_message = f"A new feedback has been created for {project_name}, check it out in the projects tab."
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        not_message = f"A new feedback has been created for project {name} by {uid}, check it out in the projects tab."
+        notification = Notification(not_title, not_receivers, not_type, not_message)
         
         Notifications.send_notification(notification)
         
         return ({"message": "Feedback sent successfully", "status" : "success"}), 200
+    
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(error_details)
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
 

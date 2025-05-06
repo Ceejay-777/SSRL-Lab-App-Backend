@@ -1,5 +1,5 @@
 import base64
-# from bson import ObjectId
+from bson import ObjectId
 from datetime import datetime
 from cloudinary.uploader import upload
 from flask_jwt_extended import get_jwt  
@@ -8,18 +8,18 @@ import os
 from uuid import uuid4
 import random
 
-# def convert_to_json_serializable(doc):
-#     if isinstance(doc, list):
-#         return [convert_to_json_serializable(d) for d in doc]
-#     if isinstance(doc, dict):
-#         for k, v in doc.items():
-#             if isinstance(v, ObjectId):
-#                 doc[k] = str(v)
-#             elif isinstance(v, bytes):
-#                 doc[k] = base64.b64encode(v).decode('utf-8')
-#             elif isinstance(v, (dict, list)):
-#                 doc[k] = convert_to_json_serializable(v)
-#     return doc
+def convert_to_json_serializable(doc):
+    if isinstance(doc, list):
+        return [convert_to_json_serializable(d) for d in doc]
+    if isinstance(doc, dict):
+        for k, v in doc.items():
+            if isinstance(v, ObjectId):
+                doc[k] = str(v)
+            elif isinstance(v, bytes):
+                doc[k] = base64.b64encode(v).decode('utf-8')
+            elif isinstance(v, (dict, list)):
+                doc[k] = convert_to_json_serializable(v)
+    return doc
 
 def get_resource_type(filename):
     extension = filename.lower().split('.')[-1] if '.' in filename else ''
