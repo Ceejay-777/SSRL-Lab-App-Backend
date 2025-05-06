@@ -46,14 +46,14 @@ class Userdb:
     def get_users_by_stack_limited(self, stack):
         return self.collection.find({"stack":stack}).limit(4)
     
-    def update_user(self, user_id, dtls):
+    def update_user(self, uid, details):
         try:
-            result = self.collection.update_one({"uid": user_id}, {"$set": dtls})
+            result = self.collection.update_one({"uid": uid}, {"$set": details})
             
             if result.matched_count == 0:
-                return {"success": False, "error": "No user found with the given UID"}
+                return {"success": False, "error": "No user found with the given UID '{uid}'"}
             if result.modified_count == 0:
-                return {"success": False, "error": "No changes were made to the document"}
+                return {"success": False, "error": "No changes were made to the user profile"}
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}

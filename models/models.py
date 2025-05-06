@@ -237,110 +237,6 @@ class Reportdb:
     def delete_report(self, report_id):
         return self.collection.update_one({"_id":ObjectId(report_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
 
-class Projectdb:
-    def __init__(self) -> None:
-        self.collection = Projects
-        
-    def get_all(self):
-        return self.collection.find({'softdeleted_at': None}).sort("date_created", DESCENDING)
-    
-    def get_all_limited(self):
-        return self.collection.find({'softdeleted_at': None}).sort("date_created", DESCENDING).limit(4)
-    
-    def get_by_isMember_limited(self, uid):
-        return self.collection.find({'$or': [
-               {'leads': uid,},
-               {'team_members': uid}
-           ], 'softdeleted_at': None}).sort('date_created', DESCENDING).limit(4)
-    
-    def get_by_isMember(self, uid):
-        return self.collection.find({'$or': [
-               {'leads': uid},
-               {'team_members': uid}
-           ], 'softdeleted_at': None}).sort('date_created', DESCENDING)
-    
-    def insert_new(self, request):
-        existing_project = self.collection.find_one({"name": request.name})
-        if not existing_project:
-            return self.collection.insert_one(request.__dict__).inserted_id
-        
-    def existing_project_name(self, name):
-        return self.collection.find_one({"name": name})
-    
-    def project_exists(self, project_id):
-        try:
-            project = self.collection.find_one({'_id': ObjectId(project_id)})
-            return project is not None
-        except:
-            return False
-        
-    def get_project_name(self, project_id):
-        project = self.collection.find_one({'_id': ObjectId(project_id)})
-        return project['name']
-    
-    def get_project_members(self, project_id):
-        project = self.collection.find_one({'_id': ObjectId(project_id)})
-        return project['leads'] + project['team_members']
-    
-    def get_project_leads(self, project_id):
-        project = self.collection.find_one({'_id': ObjectId(project_id)})
-        return project['leads']
-    
-    def get_project_team_members(self, project_id):
-        project = self.collection.find_one({'_id': ObjectId(project_id)})
-        return project['team_members']
-    
-    def get_project_submissions(self, project_id):
-        project = self.collection.find_one({'_id': ObjectId(project_id)})
-        return project['submissions']
-    
-    def get_by_project_id(self, _id):
-        return self.collection.find_one({"_id":ObjectId(_id)})
-    
-    def submit_doc(self, project_id, doc):
-        return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.docs': doc}}).modified_count > 0
-    
-    def submit_link(self, project_id, link):
-        return self.collection.update_one({'_id': ObjectId(project_id)}, {'$push': {'submissions.links': link}}).modified_count > 0
-        
-    def get_by_sender(self, uid): # Remove
-        return self.collection.find({"sender": "uid"}).sort("date_time", -1)
-    
-    def get_by_sender_limited(self, _id, uid): # Remove
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1).limit(4)
-    
-    def get_by_stack_limited(self, stack):
-        return self.collection.find({"stack" : stack}).sort("date_time", -1).limit(4)
-    
-    def get_by_stack(self, stack, uid):
-        return self.collection.find({"$or" : [
-            {"stack" : stack}, 
-            {"uid": uid},
-        ], 'softdeleted_at': None}).sort("date_time", -1)
-    
-    def get_by_recipient_dtls(self, category, recipient, name):
-        return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1)
-    
-    def get_by_recipient_dtls_limited(self, category, recipient, name):
-        return self.collection.find({"recipient_dtls":{"category":category, "recipient": recipient, "name":name}}).sort("date_time", -1).limit(4)
-    
-    def update_project_dtls(self, project_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":dtls}).modified_count>0
-    
-    def submit_project(self, project_id, dtls, no_submissions): #Remove
-        return self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"submissions":dtls, "no_submissions":no_submissions}}).modified_count>0
-    
-    def mark_project(self, project_id, status):
-        marked = self.collection.update_one({"_id":ObjectId(project_id)},{"$set":{"status":status}}).modified_count>0
-        print(marked)
-        return marked
-    
-    def delete_project(self, project_id, name):
-        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$set":{"softdeleted_at": datetime.now()}}).modified_count>0
-    
-    def send_feedback(self, project_id, sender, feedback):
-        return self.collection.update_one({"_id":ObjectId(project_id)}, {"$push": {"feedback":{'feedback': feedback, 'sender': sender, 'created_at': datetime.now()}}}).modified_count>0
-    
 class Inventorydb:
     def __init__(self) -> None:
         self.collection = Inventory
@@ -363,42 +259,6 @@ class Attendancedb:
     
     def get_attendance(self, user_id):
         return self.collection.find({"user_id": user_id}).sort("date_time", -1).limit(3)
-    
-class Sessionsdb:
-    def __init__(self) -> None:
-        self.collection = Sessions
-        
-    def create_session(self, session):
-        return self.collection.insert_one(session.__dict__).inserted_id
-    
-    def get_session(self, session_id):
-        return self.collection.find_one({"_id": ObjectId(session_id)})
-    
-    def expire_sessions(self):
-        eight_hours_ago = datetime.now() - timedelta(hours=8)
-        self.collection.update_many({"last_accessed": {"$lt": eight_hours_ago}}, {"$set": {"expired": "true"}})
-    
-    def cleanup(self): # Possibly add an expired condition
-        nine_hours_ago = datetime.now() - timedelta(hours=9)
-        self.collection.delete_many({"last_accessed": {"$lt": nine_hours_ago}})
-        
-    # def update_session(self, session_id, user_data):
-    #     return self.collection.update_one({"_id": ObjectId(session_id)}, {"$set": {"user_data": user_data}}).modified_count>0
-    
-    def update_session(self, session_id, user_data):
-        try:
-            result = self.collection.update_one(
-                {"_id": ObjectId(session_id)},
-                {"$set": {"user_data": user_data}}
-            )
-            return result.matched_count > 0  
-        except Exception as e:
-            print(f"Error updating session: {e}")
-            return False
-    
-    def delete_session(self, session_id):
-        self.collection.delete_one({"session_id": session_id})    
-    
     
 class generate:   
     def password():
@@ -448,13 +308,13 @@ class generate:
         return otp
     
 class Notification:
-    def __init__(self, title, receivers, type, message, status="unread", sentAt=None) -> None:
+    def __init__(self, title, receivers, type, message, status="unread", created_at=None) -> None:
         self.title = title
         self.receivers = receivers
         self.type = type
         self.message = message
         self.status = status
-        self.sentAt = sentAt or datetime.now()
+        self.created_at = created_at or datetime.now()
 
 class Eqpt:
     def __init__(self, name, quantity, description, date_of_arrival, type, status, datetime_inputed, date_inserted) -> None:
@@ -510,28 +370,6 @@ class Request:
         self.status = status
         self.created_at = created_at or datetime.now()
         self.request_dtls = request_dtls
-        
-class Project:
-    def __init__(self, name, description, objectives, leads, team_members, team_avatars, stack, createdBy, status, submissions, date_created, deadline) -> None:
-        self.name = name
-        self.description = description
-        self.objectives = objectives
-        self.team_members = team_members
-        self.leads = leads
-        self.team_avatars = team_avatars
-        self.stack = stack
-        self.createdBy = createdBy
-        self.status = status
-        self.submissions = submissions
-        self.date_created = date_created
-        self.deadline = deadline
-        
-class Session:
-    def __init__(self, user_data={}, created_at=datetime.now(), last_accessed=datetime.now(), expired="false"):
-        self.user_data = user_data
-        self.created_at = created_at
-        self.last_accessed = last_accessed
-        self.expired = expired
 class Report:
     def __init__(self, title, stack, report_type, receiver, sender, avatar, submissions=None, feedback=None, created_at=None):
         self.title = title 

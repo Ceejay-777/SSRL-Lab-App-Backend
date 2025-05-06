@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import Userdb, generate, updatePwd
+from models.models import generate, updatePwd
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable, return_error
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -8,7 +8,7 @@ from app.extensions import mail
 from datetime import datetime, timedelta
 from models.user import User, Userdb
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__, url_prefix="/auth" )
 User_db = Userdb()
 
 
@@ -54,7 +54,7 @@ def login():
         }
         return response, 200
     except Exception as e:
-        return return_error(e), 500
+        return jsonify(return_error(e)), 500
 
 @auth_bp.get('/logout')
 @jwt_required()
@@ -76,79 +76,78 @@ def forgot_password():
             return jsonify( {"message": "Please confirm that the provided email is correct!", "status": "error"}), 403
         
         otp = generate.OTP()
-        dtl = {'otp': otp, 'expiry': (datetime.now() + timedelta(days=1))}
-        set_otp = User_db.update_dtl(uid, {'otp': dtl})
+        details = {'otp': otp, 'expiry': (datetime.now() + timedelta(minutes=10))}
+        set_otp = User_db.update_user(uid, {'otp': details})
         
-        if not set_otp:
-            return jsonify({'message': 'Could not send OTP right now. Please try again later', 'status': 'error'}), 500
-    
-        msg = Message('SSRL Password Recovery', recipients = [email])
-        msg.body = f"Enter the OTP below into the required field \nThe OTP will expire in 24 hours\n\nOTP: {otp}  \n\n\nFrom SSRL Team"
-        
-        mail.send(msg)
+        if not set_otp["success"]:
+            return jsonify({'message': set_otp['error'], 'status': 'error'}), 500
+
+        try: 
+            msg = Message('SSRL Password Recovery', recipients = [email])
+            msg.body = f"Your passowrd recovery OTP is {otp}\n\nThe OTP will expire in 24 hours\n\n\nFrom SSRL Team"
+            
+            mail.send(msg)
+            
+        except Exception as e:
+            print(return_error(e)['message'])
         
         print(otp)
         print(email)
         
-        response = {
-            "message": "OTP sent successfully",
-            "otp": otp, 
-            "status" : "success",
-        }
+        response = {"message": "OTP sent successfully", "status" : "success",}
         
         return jsonify(response), 200
     
     except Exception as e:
-        # import traceback
-        # error = traceback.format_exc()
-        # print(error)
-        print(e)
-        response = {
-            "message": "Unable to recover your account at the moment! Please confirm that the input email is correct or check your internet connection.",
-            "status": "error",
-            "error": str(e),
-            
-        }
-        return jsonify(response), 500
+        return jsonify(return_error(e)), 500
         
-@auth_bp.post('/confirm/otp')
+@auth_bp.post('/confirm_otp')
 def confirm_otp():
     try:
-        input_otp = request.json.get("otp")
-        uid = request.json.get("uid")
-        user = User_db.get_user_by_uid(uid)
+        data = request.json
+        input_otp = data.get("otp")
+        uid = data.get("uid")
         
+        if not input_otp:
+            return jsonify({'message': 'OTP is required', 'status': 'error'}), 401
+        
+        user = User_db.get_user_by_uid(uid)
         if not user:
-            return jsonify( {"message": "Please confirm that your username is correct!", "status": "error"}), 403
+            return jsonify( {"message": "Intern with uid '{uid}' does not exist", "status": "error"}), 403
         
         otp = user.get('otp', {}).get('otp', None)
         otp_expiry = user.get('otp', {}).get('expiry', None)
         
-        if otp and input_otp == otp and otp_expiry > datetime.now():
-            return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200 
+        if not otp:
+            return jsonify({"message": "OTP not found. Enter your email in the forgot passowrd field to get an OTP", "status" : "error"}), 401
+         
+        if input_otp != otp:
+            return jsonify({"message": "Invalid OTP", "status" : "error"}), 403
         
-        else:
-            return jsonify({"message": "Invalid OTP!", "status" : "error"}), 401
+        if otp_expiry > datetime.now():
+            return jsonify({"message": "OTP has expired", "status" : "error"}), 401 
+        
+        return jsonify({"message": "OTP confirmed. Proceed to change password.", "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
 
 @auth_bp.patch('/change_password')
 def change_password():
-    new_pwd = request.json.get("new_pwd")
-    print(new_pwd)
-    uid = request.json.get('uid')
+    data = request.json
+    new_password = data.get("new_password")
+    uid = data.get('uid')
     
     try: 
-        hashed_pwd = generate_password_hash(new_pwd)
-        dtls = {"hashed_pwd": hashed_pwd}
-        updated = User_db.update_dtl(uid, dtls)
+        hashed_pwd = generate_password_hash(new_password)
+        details = {"hashed_pwd": hashed_pwd}
         
-        if not updated:
+        updated = User_db.update_user(uid, details)
+        if not updated['success']:
+            print(updated['message'])
             return jsonify({'message': 'Could not change your password right now. Please try again later', 'status': 'error'}), 500
             
         return jsonify({"message": f"Password changed successfully!", "status" : "success"}), 200 
     
     except Exception as e:
-        print(e)
-        return jsonify({"message": f"Something went wrong! Please, try again", "status" : "error"}), 500
+        return jsonify(return_error(e)), 500

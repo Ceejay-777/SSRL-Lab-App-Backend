@@ -1,27 +1,25 @@
 import base64
-from bson import ObjectId
+# from bson import ObjectId
 from datetime import datetime
-from models.models import Sessionsdb
 from cloudinary.uploader import upload
 from flask_jwt_extended import get_jwt  
 from functools  import wraps
 import os
 from uuid import uuid4
+import random
 
-Sessions_db = Sessionsdb()
-
-def convert_to_json_serializable(doc):
-    if isinstance(doc, list):
-        return [convert_to_json_serializable(d) for d in doc]
-    if isinstance(doc, dict):
-        for k, v in doc.items():
-            if isinstance(v, ObjectId):
-                doc[k] = str(v)
-            elif isinstance(v, bytes):
-                doc[k] = base64.b64encode(v).decode('utf-8')
-            elif isinstance(v, (dict, list)):
-                doc[k] = convert_to_json_serializable(v)
-    return doc
+# def convert_to_json_serializable(doc):
+#     if isinstance(doc, list):
+#         return [convert_to_json_serializable(d) for d in doc]
+#     if isinstance(doc, dict):
+#         for k, v in doc.items():
+#             if isinstance(v, ObjectId):
+#                 doc[k] = str(v)
+#             elif isinstance(v, bytes):
+#                 doc[k] = base64.b64encode(v).decode('utf-8')
+#             elif isinstance(v, (dict, list)):
+#                 doc[k] = convert_to_json_serializable(v)
+#     return doc
 
 def get_resource_type(filename):
     extension = filename.lower().split('.')[-1] if '.' in filename else ''
@@ -60,17 +58,6 @@ def get_date_now():
     year = now("%Y")
     return "{0} {1}, {2}".format(month, date, year)
 
-def check_session(session_id):
-    if session_id == "":
-        return False
-
-    session = Sessions_db.get_session(session_id)
-    
-    if not session:
-        return False
-    
-    return session["user_data"]
- 
 
 def admin_role_required(f):
     @wraps(f)
@@ -109,4 +96,10 @@ def return_error(error_message):
     import traceback
     traceback.print_exc()
     return {'message': f'An error occurred: {str(error_message)}', 'status': 'error'}
-        
+
+def get_la_code(prefix):
+    prefix = prefix.upper()
+    if len(prefix) != 3 or not prefix.isalpha():
+        raise ValueError("Prefix must be exactly 3 alphabetic characters.")
+    random_part = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=10))
+    return f"{prefix}-{random_part}"

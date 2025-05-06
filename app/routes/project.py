@@ -1,25 +1,23 @@
 from flask import Blueprint, request, jsonify
-from models.models import Userdb, generate, updatePwd, Reportdb, Requestdb, Projectdb, Todosdb, Notificationsdb, Notification, AllowedExtension, User, Project
-from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
+from models.models import generate, updatePwd, Reportdb, Requestdb, Todosdb, Notificationsdb, Notification, AllowedExtension
 from funcs import convert_to_json_serializable
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from flask_mail import Message
 from app.extensions import mail
 from datetime import datetime, timedelta
 from funcs import *
 import json
 from werkzeug.utils import secure_filename
+from models.project import Project, Projectdb
+from models.user import Userdb
 
-project_bp = Blueprint('project', __name__)
+project_bp = Blueprint('project', __name__, url_prefix='/project')
 
 User_db = Userdb()
-Request_db = Requestdb()
-Report_db = Reportdb()
 Project_db = Projectdb()
-Todos_db = Todosdb()
 Notifications = Notificationsdb()
 
-@project_bp.post('/project/create') 
+@project_bp.post('/create') 
 @jwt_required()
 def create_project():
     try:
@@ -31,74 +29,71 @@ def create_project():
         objectives = data.get("objectives") 
         leads = data.get("leads")
         team_members = data.get("team_members") 
-        stack = data.get("stack")
+        stack = data.get("stack").lower()
         deadline = data.get("deadline")
         
+        if Project_db.existing_project_name(name):
+            response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
+            return(response)
+            
         team_avatars = []
         
         for lead in leads:
             profile = User_db.get_user_by_uid(lead['id'])
             if not profile:
                 continue
-            else:
-                avatar = profile['avatar']
-                if avatar != 'NIL':
-                    team_avatars.append(avatar['secure_url'])
-                else: team_avatars.append('NIL')
+            
+            avatar = profile['avatar']
+            if not avatar:
+                team_avatars.append(avatar['secure_url'])
+            else: team_avatars.append(None)
                     
         for member in team_members:
             profile = User_db.get_user_by_uid(member['id'])
             if not profile:
                 continue
-            else:
-                avatar = profile['avatar']
-                if avatar != 'NIL':
-                    team_avatars.append(avatar['secure_url'])
-                else: team_avatars.append('NIL')
+                    
+            avatar = profile['avatar']
+            if not avatar :
+                team_avatars.append(avatar['secure_url'])
+            else: team_avatars.append(None)
             
-        createdBy = uid
-        submissions = {"docs": [], "links": []} 
+        project_id = get_la_code('pjt')
            
-        date_created = datetime.now()
-        project_status = "Uncompleted"
+        project = Project(project_id=project_id, name=name, description=description, objectives=objectives, leads=leads, team_members=team_members, team_avatars=team_avatars, stack=stack, created_at=uid, deadline=deadline) 
         
-        project = Project(name, description, objectives, leads, team_members, team_avatars, stack, createdBy, project_status, submissions, date_created, deadline) #Removed recipient_dtls
-        project_id = Project_db.insert_new(project)
-        # project_id = None
+        project_created = Project_db.create_project(project)
+        if not project_created:
+            response = convert_to_json_serializable({"message" : "Unable to create project. Please try again", "status" : "error"})
         
         not_title = "New Project"
         not_receivers = leads + team_members
         not_type = "Project"
-        not_message = f"You have been added to a new project {name}. Check it out in your projects tab!"
+        not_message = f"You have been added to a new project '{name}'. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        if project_id:
-            response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
-            Notifications.send_notification(notification)
-        else:
-            response = convert_to_json_serializable({"message" : f"Project with name '{name}' already exists.", "status": "error"})
-        return(response)
+        response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
+        Notifications.send_notification(notification)
+            
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(error_details)  
-        return {'message': f'An error occurred: {str(e)}', 'status': 'error', "traceback": error_details}, 500
+        return jsonify({return_error(e)}), 500
 
-@project_bp.get('/project/view/<project_id>')
+@project_bp.get('/get_project/<project_id>')
 @jwt_required()
 def view_project(project_id):
     try:
         project = Project_db.get_by_project_id(project_id)
         
         if not project:
-            return jsonify({"message": "Invalid project id", "status": "error"}), 400
+            return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
             
-        response = convert_to_json_serializable({"project": project, "status": "success"})
+        response = convert_to_json_serializable({"project": project, "status": "success", "message": "Project fetched successfully"})
         return jsonify(response), 200
-    except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@project_bp.get('/project/get_all')
+    except Exception as e:
+        return jsonify(return_error(e)), 500
+    
+@project_bp.get('/get_all')
 @jwt_required()
 def get_all_projects():
     try:
