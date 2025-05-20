@@ -213,7 +213,7 @@ def create_user():
         
         user_id= User_db.create_user(user)
         if not user_id:
-            return jsonify({"message": "Unable to create user at the moment. Please try again", "status" : "danger"}), 500
+            return jsonify({"message": "Unable to create user at the moment. Please try again", "status" : "error"}), 500
         
         response = convert_to_json_serializable({"message" : f"user {uid} created successfully. {avatar_msg}", "user_id" : str(user_id), "status" : "success"})
         
@@ -230,7 +230,7 @@ def create_user():
         
     except Exception as e:
         print(e)
-        return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "danger"}), 500
+        return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "error"}), 500
     
 @personnel_bp.get('/me')
 @jwt_required()
@@ -258,7 +258,7 @@ def edit_profile():
         
         user = User_db.get_user_by_uid(uid)    
         if not user:
-            return jsonify({"message": "User with uid '{uid}' not found", "status": "error"}), 404
+            return jsonify({"message": f"User with uid '{uid}' not found", "status": "error"}), 404
             
         avatar_msg = ''
         previous_avatar = user.get('avatar')
@@ -291,7 +291,7 @@ def edit_profile():
         updated = User_db.update_user(uid, data)
     
         if not updated['success']:
-            return jsonify({"message": f"{updated['error']}", "status" : "danger"}), 403
+            return jsonify({"message": f"{updated['error']}", "status" : "error"}), 403
         
         return jsonify({"message": f"profile updated successfully {avatar_msg}", "status" : "success"}), 200
         
@@ -305,17 +305,12 @@ def admin_edit_profile(uid):
     try:
         data = json.loads(request.form.get('info'))
         
-        firstname =data.get("firstname")
-        surname =data.get("surname")
         avatar = request.files.get("avatar", None)
-        
-        print(avatar)
-        data["fullname"] = "{0} {1}".format(surname, firstname)
         avatar_msg = ''
         
         user = User_db.get_user_by_uid(uid)
         if not user:
-            return jsonify({"message": "User not found", "status": "error"}), 404
+            return jsonify({"message": f"User with uid '{uid}' not found", "status": "error"}), 404
         
         previous_avatar = user.get('avatar')
         
@@ -352,117 +347,146 @@ def admin_edit_profile(uid):
         return jsonify({"message": f"Profile updated successfully. {avatar_msg}", "status": "success"}), 200
     
     except Exception as e:
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+        return jsonify(return_error(e)), 500
             
 @personnel_bp.patch('/add_lead/<intern_uid>') 
 @jwt_required()
 @admin_and_lead_role_required
 def admin_add_lead(intern_uid):
     try:
-        stack = User_db.get_user_by_uid(intern_uid)["stack"]
-        dtls = {
-            "role": "Lead"
-        }
-        updated = User_db.update_dtl(intern_uid, dtls)
-        if updated:
-            return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
-        else:
-            return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
+            
+        stack = user["stack"]
+        dtls = {"role": "Lead"}
         
+        updated = User_db.update_dtl(intern_uid, dtls)
+        if not updated:
+            return jsonify({"message": f"Could not make {intern_uid} a {stack} lead", "status" : "error"}), 500
+            
+        return jsonify({"message": f"You've successfully made {intern_uid} a {stack} Lead", "status" : "success"}), 200
+
     except Exception as e:  
-            return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+            return jsonify(return_error(e)), 500
    
 @personnel_bp.patch('/remove_lead/<intern_uid>') 
 @jwt_required()
 @admin_and_lead_role_required
 def admin_remove_lead(intern_uid):
     try:
-        stack = User_db.get_user_by_uid(intern_uid)["stack"]
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
+            
+        stack = user["stack"]
+        dtls = {"role": "Intern"}
         
-        dtls = {
-            "role": "Intern"
-        }
         updated = User_db.update_dtl(intern_uid, dtls)
-        if updated:
-            return jsonify({"message": f"You've successfully removed {intern_uid} as {stack} lead", "status" : "success"}), 200
-        else:
-            return jsonify({"message": "profile update unsuccessful","status" : "danger"}), 500
+        if not updated:
+            return jsonify({"message": f"Could not remove {intern_uid} as {stack} lead", "status" : "error"}), 500
+            
+        return jsonify({"message": f"You've successfully removed {intern_uid} as {stack} Lead", "status" : "success"}), 200
+
     except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+            return jsonify(return_error(e)), 500
     
 @personnel_bp.patch('/add_admin/<intern_uid>') 
 @jwt_required()
 @admin_role_required
 def admin_add_admin(intern_uid):
     try:
-        dtls = {
-            "role": "Admin"
-        }
-        updated = User_db.update_dtl(intern_uid, dtls)
-        if updated:
-            return jsonify({"message": f"You've successfully made {intern_uid} an Admin", "status" : "success"}), 200
-        else:
-            return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
-    except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
         
-@personnel_bp.patch('/remove_admin/<intern_uid>')
+        dtls = {"role": "Admin"}
+        
+        updated = User_db.update_dtl(intern_uid, dtls)
+        if not updated:
+            return jsonify({"message": f"Could not make {intern_uid} an Admin", "status" : "error"}), 500
+        
+        return jsonify({"message": f"You've successfully made {intern_uid} an Admin", "status" : "success"}), 200
+            
+    except Exception as e:  
+        return jsonify(return_error(e)), 500
+        
+@personnel_bp.patch('/remove_admin/<intern_uid>') 
 @jwt_required()
 @admin_role_required
 def admin_remove_admin(intern_uid):
     try:
-        dtls = {
-            "role": "Intern"
-        }
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
+        
+        dtls = {"role": "Intern"}
+        
         updated = User_db.update_dtl(intern_uid, dtls)
-        if updated:
-            return jsonify({"message": f"You've successfully removed {intern_uid} from an Admin", "status" : "success"}), 200
-        else:
-            return jsonify({"message": "Profile update unsuccessful","status" : "danger"}), 500
-    except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
-
-@personnel_bp.patch('/admin/delete_user/<requested_id>')
-@jwt_required()
-@admin_role_required
-def admin_delete_user(requested_id):
-    try:
-        dtls = {"deleted": "True"}
-        deleted = User_db.update_dtl(requested_id, dtls)
+        if not updated:
+            return jsonify({"message": f"Could not remove {intern_uid} as Admin", "status" : "error"}), 500
         
-        if deleted:
-            return jsonify({"message": f"User {requested_id} deleted successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message": f"The request to delete {requested_id} was not successful!", "status" : "danger"}), 400
+        return jsonify({"message": f"You've successfully removed {intern_uid} as Admin", "status" : "success"}), 200
+            
     except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
-    
-@personnel_bp.patch('/admin/suspend_user/<requested_id>')
-@jwt_required()
-@admin_role_required
-def admin_suspend_user(requested_id):
-    try:
-        dtls = {"suspended": "True"}
-        deleted = User_db.update_dtl(requested_id, dtls)
+        return jsonify(return_error(e)), 500
 
-        if deleted:
-            return jsonify({"message": f"User {requested_id} suspended successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message": f"The request to suspend {requested_id} was not successful!", "status" : "danger"}), 400
-    except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
-    
-@personnel_bp.patch('/admin/unsuspend_user/<requested_id>')
+@personnel_bp.delete('/delete_user/<intern_uid>')
 @jwt_required()
 @admin_role_required
-def admin_unsuspend_user(requested_id):
+def admin_delete_user(intern_uid):
     try:
-        dtls = {"suspended": "False"}
-        deleted = User_db.update_dtl(requested_id, dtls)
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
         
-        if deleted:
-            return jsonify({"message": f"User {requested_id} unsuspended successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message": f"The request to delunsuspend {requested_id} was not successful!", "status" : "danger"}), 400
+        dtls = {"deleted_at": datetime.now()}
+        deleted = User_db.update_dtl(intern_uid, dtls)
+        
+        if not deleted:
+            return jsonify({"message": f"Could not delete {intern_uid}!", "status" : "error"}), 400
+            
+        return jsonify({"message": f"User {intern_uid} deleted successfully!", "status" : "success"}), 200
+    
     except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
+        return jsonify(return_error(e)), 500
+    
+@personnel_bp.patch('/suspend_user/<intern_uid>')
+@jwt_required()
+@admin_role_required
+def admin_suspend_user(intern_uid):
+    try:
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
+        
+        dtls = {"suspended": True}
+        suspended = User_db.update_dtl(intern_uid, dtls)
+
+        if not suspended:
+            return jsonify({"message": f"Could not suspend {intern_uid}!", "status" : "error"}), 400
+        
+        return jsonify({"message": f"User {intern_uid} suspended successfully!", "status" : "success"}), 200
+    
+    except Exception as e:  
+        return jsonify(return_error(e)), 500
+    
+@personnel_bp.patch('/unsuspend_user/<intern_uid>')
+@jwt_required()
+@admin_role_required
+def admin_unsuspend_user(intern_uid):
+    try:
+        user = User_db.get_user_by_uid(intern_uid)
+        if not user:
+            return jsonify({"message": f"User with uid '{intern_uid}' not found", "status": "error"}), 404
+        
+        dtls = {"suspended": False}
+        suspended = User_db.update_dtl(intern_uid, dtls)
+
+        if not suspended:
+            return jsonify({"message": f"Could not unsuspend {intern_uid}!", "status" : "error"}), 400
+        
+        return jsonify({"message": f"User {intern_uid} unsuspended successfully!", "status" : "success"}), 200
+    
+    except Exception as e:  
+        return jsonify(return_error(e)), 500

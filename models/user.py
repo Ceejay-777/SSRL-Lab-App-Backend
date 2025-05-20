@@ -23,20 +23,11 @@ class Userdb:
     def get_user_by_oid(self, user_id):
         return self.collection.find_one({"_id": ObjectId(user_id)})
     
-    def update_dtl(self, user_id, dtls):
-        return self.collection.update_one({"uid":user_id},{"$set": dtls}).modified_count>0
-    
-    def delete_user(self, id, dtls):
-        return self.collection.update_one({"uid":id}, {"$set": dtls}).modified_count>0
-    
-    def get_all_users(self):
-        return self.collection.find().sort("uid")
+    def update_dtl(self, uid, dtls):
+        return self.collection.update_one({"uid":uid}, {"$set": dtls}).modified_count>0
     
     def get_all_users_limited(self):
         return self.collection.find().limit(4)
-    
-    def get_lead(self, stack):
-        return self.collection.find_one({"role":"Lead", "stack":stack})
     
     def get_users_by_stack(self, stack):
         return self.collection.find({"stack":stack}).sort("uid")
