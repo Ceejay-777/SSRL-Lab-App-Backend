@@ -1,7 +1,7 @@
 import base64
 from bson import ObjectId
 from datetime import datetime
-from cloudinary.uploader import upload
+from cloudinary.uploader import upload, destroy
 from flask_jwt_extended import get_jwt  
 from functools  import wraps
 import os
@@ -33,7 +33,7 @@ def get_resource_type(filename):
     else:
         return 'raw'
 
-def upload_func(file, folder):
+def upload_file(file, folder):
     _, file_extension = os.path.splitext(file.filename)
     type = get_resource_type(file.filename)
     public_id = f"{folder}/{uuid4()}"
@@ -50,6 +50,9 @@ def upload_func(file, folder):
             upload_options["public_id"] = f"{public_id}{file_extension.lower()}"
             
     return upload(file, asset_folder=folder, upload_preset="intern_submissions", **upload_options)
+
+def delete_file(public_id):
+    return destroy(public_id, invalidate=True)
     
 def get_date_now():
     now = datetime.now().strftime

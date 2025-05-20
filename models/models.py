@@ -273,15 +273,11 @@ class generate:
     def user_id(firstname):
         max = int(3)
         digits = string.digits
-        #while 1:
             
         _id = firstname + "SSRL"
         
         for index in range(max):
             _id = _id + random.choice(digits)
-            
-            # if Users.find_one({"pwd":_id}) == "None": 
-            #     break
             
         return _id 
     

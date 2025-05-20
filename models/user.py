@@ -7,6 +7,7 @@ class Userdb:
         self.collection =  Users
 
     def create_user(self, user):
+        print(user.__dict__)
         return self.collection.insert_one(user.__dict__).inserted_id
         
     def get_user_by_role(self, role):
@@ -56,8 +57,8 @@ class Userdb:
             return {"success": False, "error": str(e)}
         
 class User:
-    def __init__(self, firstname, surname, hashed_pwd, uid, stack, niche, role, phone_num, email, avatar, mentors, bio, bday, location=None, suspended=None, created_at=None) -> None:
-        self.firstname = firstname, 
+    def __init__(self, firstname, surname, hashed_pwd, uid, stack, niche, role, phone_num, email, avatar, bio, bday, mentors=None, location=None, suspended=None, created_at=None) -> None:
+        self.firstname = firstname 
         self.surname = surname
         self.hashed_pwd = hashed_pwd
         self.uid = uid

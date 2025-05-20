@@ -166,27 +166,25 @@ def create_user():
         data = json.loads(request.form.get('info'))
         print(data)
         
-        firstname =data.get("firstname")
-        surname =data.get("lastname")
+        firstname = data.get("firstname")
+        surname = data.get("surname")
         pwd = generate.password()
         hashed_pwd = generate_password_hash(pwd)
-        stack =data.get("stack")
-        niche =data.get("niche")
-        role =data.get("role")
-        phone_num =data.get("phone_num")
-        email =data.get("email")
-        bio =data.get("bio", None)
-        bday =data.get("bday", None)
-        avatar_url = None
+        stack = data.get("stack")
+        niche = data.get("niche")
+        role = data.get("role")
+        phone_num = data.get("phone_num")
+        email = data.get("email")
+        bio = data.get("bio", None)
+        bday = data.get("bday", None)
         
         while True:
             uid = generate.user_id(firstname)
             
-            if User_db.get_user_by_uid(uid):
-                continue
-            else:
+            if not User_db.get_user_by_uid(uid):
                 break
             
+        avatar_url = None
         avatar = request.files.get("avatar", None)
         avatar_msg = ''
         
@@ -195,12 +193,12 @@ def create_user():
                 return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
             
             if len(avatar.read()) > 500 * 1024:
-                return {'message': 'File size should not exceed 500KB', 'status': 'error'}, 400
+                return {'message': 'Avatar size should not exceed 500KB', 'status': 'error'}, 400
             
             avatar.seek(0)
             
             try:
-                upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
+                upload_result = upload_file(avatar, 'SSRL_Lab_App/interns/profile_image')
                 
                 if not upload_result:
                     avatar_msg = "Avatar upload failed"
@@ -211,8 +209,7 @@ def create_user():
             except Exception as e:
                 return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500
         
-        
-        user = User(firstname=firstname, surname=surname, hashed_pwd=hashed_pwd, uid=uid, stack=stack, nich=niche, role=role, phone_num=phone_num, email=email, avatar=avatar_url, bio=bio, bday=bday)
+        user = User(surname=surname, hashed_pwd=hashed_pwd, uid=uid, stack=stack, niche=niche, role=role, phone_num=phone_num, email=email, avatar=avatar_url, bio=bio, bday=bday, firstname=firstname)
         
         user_id= User_db.create_user(user)
         if not user_id:
@@ -226,23 +223,21 @@ def create_user():
             
             mail.send(msg)
         
-            response = convert_to_json_serializable({"message" : f"user {uid} created successfully", "user_id" : str(user_id), "status" : "success"})
-            
-            return jsonify(response), 200 # Show the created user's profile -> Fetch /show/profile/<requested_id>
-        except Exception as e:
-            print(e)
+            return jsonify(response), 200 
         
-        return jsonify(response)
-    
+        except Exception as e:
+            return (return_error(e)), 500
+        
     except Exception as e:
         print(e)
         return jsonify({"message": f"Unable to create user at the moment! Please confirm that the inputed email is correct or check your internet connection. {e}", "status" : "danger"}), 500
     
-@personnel_bp.get('/personnel/me')
+@personnel_bp.get('/me')
 @jwt_required()
-def view_profile_me():
+def view_my_profile():
     try:
         uid = get_jwt_identity()
+        
         user_profile = User_db.get_user_by_uid(uid)
         if not user_profile:
             return jsonify({'message': 'Profile not found', 'status': 'error'}), 404
@@ -251,18 +246,24 @@ def view_profile_me():
         return jsonify(convert_to_json_serializable(response)), 200 
     
     except Exception as e:
-        return jsonify({'mes  sage': f"Something went wrong: {e}", 'status': 'error'}), 500
+        return jsonify(return_error(e)), 500
 
-@personnel_bp.patch('/personnel/edit_profile') 
+@personnel_bp.patch('/edit_profile') 
 @jwt_required()
-def user_edit_profile(): 
+def edit_profile(): 
     try:
         uid = get_jwt_identity()
         data = json.loads(request.form.get('info'))
-        avatar = request.files.get('avatar', 'NIL')
-        avatar_msg = ''
+        avatar = request.files.get('avatar', None)
         
-        if avatar != 'NIL':  
+        user = User_db.get_user_by_uid(uid)    
+        if not user:
+            return jsonify({"message": "User with uid '{uid}' not found", "status": "error"}), 404
+            
+        avatar_msg = ''
+        previous_avatar = user.get('avatar')
+        
+        if avatar: 
             if not allowed_file(avatar.filename):
                 return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
             
@@ -272,14 +273,18 @@ def user_edit_profile():
             avatar.seek(0)
             
             try: 
-                uploaded = upload_func(avatar, folder="smart_app/avatars")
+                uploaded = upload_file(avatar, folder="SSRL_Lab_App/interns/profile_image")
                 
                 if not uploaded:
                     avatar_msg = "Could not upload image right now"
+                    
                 else:
                     avatar = {'secure_url': uploaded["secure_url"], 'public_id': uploaded["public_id"]}
+                    if previous_avatar:
+                        delete_file(previous_avatar.get('public_id'))
                     
             except Exception as e:
+                avatar_msg = f"Could not upload image right now: {str(e)}"
                 print(e)
                 
         data['avatar'] = avatar
@@ -291,27 +296,30 @@ def user_edit_profile():
         return jsonify({"message": f"profile updated successfully {avatar_msg}", "status" : "success"}), 200
         
     except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+        return jsonify(return_error(e)), 500
 
-@personnel_bp.patch('/personnel/admin_edit/<edit_id>')
+@personnel_bp.patch('/admin_edit_profile/<uid>')
 @jwt_required()
 @admin_and_lead_role_required
-def admin_edit_profile(edit_id):
+def admin_edit_profile(uid):
     try:
         data = json.loads(request.form.get('info'))
         
         firstname =data.get("firstname")
         surname =data.get("surname")
-        avatar = request.files.get("avatar", 'NIL')
+        avatar = request.files.get("avatar", None)
+        
         print(avatar)
         data["fullname"] = "{0} {1}".format(surname, firstname)
         avatar_msg = ''
         
-        edit_profile = User_db.get_user_by_uid(edit_id)
-        if not edit_profile:
+        user = User_db.get_user_by_uid(uid)
+        if not user:
             return jsonify({"message": "User not found", "status": "error"}), 404
         
-        if avatar != 'NIL':
+        previous_avatar = user.get('avatar')
+        
+        if avatar:
             if not allowed_file(avatar.filename):
                 return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
             
@@ -321,21 +329,23 @@ def admin_edit_profile(edit_id):
             avatar.seek(0)
             
             try:
-                upload_result = upload_func(avatar, 'SSRL_Lab_App/interns/profile_image')
-                
-                if not upload_result:
+                uploaded = upload_file(avatar, 'SSRL_Lab_App/interns/profile_image')
+                if not uploaded:
                     avatar_msg = "Avatar upload failed"
+                    
                 else:
                     avatar_msg = ''
-                    avatar = {"secure_url": upload_result['secure_url'], "public_id": upload_result['public_id']}
-                    print(avatar)
+                    avatar = {"secure_url": uploaded['secure_url'], "public_id": uploaded['public_id']}
+                    
+                    if previous_avatar:
+                        delete_file(previous_avatar.get('public_id'))
                     
             except Exception as e:
                 return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500    
         
             data['avatar'] = avatar
             
-        edited = User_db.update_user(edit_id, data)
+        edited = User_db.update_user(uid, data)
         if not edited['success']:
             return jsonify({"message": f"Profile update unsuccessful: {edited['error']}", "status": "error"}), 500
         
@@ -343,27 +353,6 @@ def admin_edit_profile(edit_id):
     
     except Exception as e:
         return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
-    
-     # try:
-        #     msg = Message('SSRL Profile Updated', sender = 'covenantcrackslord03@gmail.com', recipients = [edit_profile["email"]])
-        #     msg.body = f"Your profile has been updated\n Check out your new Id below below\n\nUnique I.D: {uid}\n\n\nFrom SSRL Team"
-            
-        #     mail.send(msg)
-            
-        #     updated = User_db.update_user_profile_by_oid(oid, dtls)
-        #     if updated:
-        #         flash("Profile updated successful!", "success")
-        #         return redirect(url_for('show_user_profile', requested_id=edit_profile["_id"]))
-        #     else:
-        #         flash("profile update undsuccessful!", "danger")
-        #         return redirect(url_for('view_members'))
-        # except: 
-        #     flash("Profile update unsuccessful! Please confirm that the inputed email address is correct and that you are connected to the internet.", "danger")
-        #     return redirect(url_for('view_members'))
-    
-   
-        
-    # return jsonify({"message": "Something went wrong. Please try again", "status" : "danger"}), 500
             
 @personnel_bp.patch('/add_lead/<intern_uid>') 
 @jwt_required()

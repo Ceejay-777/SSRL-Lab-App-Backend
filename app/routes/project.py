@@ -278,7 +278,7 @@ def submit_project_doc(project_id):
         members_ids = [member['id'] for member in members]
         
         try:
-            uploaded = upload_func(submission, f"SSRL_Lab_App/projects/{project_id}")
+            uploaded = upload_file(submission, f"SSRL_Lab_App/projects/{project_id}")
             print(uploaded)
             
             if not uploaded:
