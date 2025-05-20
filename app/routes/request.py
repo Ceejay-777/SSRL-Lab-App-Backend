@@ -36,10 +36,9 @@ def create_request():
             avatar = avatar['secure_url']
        
         data = request.json
-        print(data)
         title = data.get("title")
         type = data.get("type")
-        request_details = data.get("request_details")
+        request_details = data.get("request_details", None)
         receipient = data.get("receipient")
         purpose = data.get("purpose")
         
@@ -67,14 +66,14 @@ def create_request():
         return jsonify({"message" : "Request submitted successfully!", "status" : "success"}), 200
     
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
-@request_bp.get('/request/get_all')
+@request_bp.get('/get_all')
 @jwt_required()
 def get_all_requests():
     try:
         uid = get_jwt_identity()
-        role = get_jwt().get('user_role')
+        role = get_jwt()['user_role']
         
         if role == 'Admin':
             requests = list(Request_db.get_all())
@@ -86,77 +85,94 @@ def get_all_requests():
         return jsonify({'requests': requests, 'status': 'success'})
         
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
-    
+        return jsonify(return_error(e)), 500
 
-@request_bp.get('/request/get_request/<request_id>')
+@request_bp.get('/get_request/<request_id>')
 @jwt_required()
 def view_request(request_id):
     try:
         request = Request_db.get_by_request_id(request_id)
         if not request:
-            return jsonify({"message": "Request not found", "status": "error"}), 404
+            return jsonify({"message": f"Request with id '{request_id}' not found", "status": "error"}), 404
         
         response = convert_to_json_serializable({"request":request, "status" : "success"})
         return jsonify(response), 200
     
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
-@request_bp.post('/request/approve/<request_id>')
+@request_bp.patch('/approve/<request_id>')
 @jwt_required()
 def approve_request(request_id):
     try:
-        uid = get_jwt_identity()
-        approved = Request_db.approve_request(request_id)
-        title = Request_db.get_by_request_id(request_id)['title']
+        request = Request_db.get_by_request_id(request_id)
+        if not request:
+            return jsonify({"message": f"Request with id '{request_id}' not found", "status": "error"}), 404
         
-        not_title = "Request Approved"
-        not_receivers = [uid]
-        not_type = "Request"
-        not_message = f"Your request '{title}' has been approved. Check it out in your requests tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
-
-        if approved: 
-            Notifications.send_notification(notification)
-            return jsonify({"message" : 'Request approved', "status" : "success"}), 200                                                  
-        else:
+        title = request['title']
+        sender_id = request['sender']['id']
+        
+        details = {'status': 'approved'}
+        approved = Request_db.update_request_dtls(request_id, details)
+        if not approved:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
         
+        not_title = "Request Approved"
+        not_receivers = [sender_id]
+        not_type = "Request"
+        not_message = f"Your request '{title}' has been approved. Check it out in your requests tab!"
+        notification = Notification(not_title, not_receivers, not_type, not_message)
+
+        Notifications.send_notification(notification)
+        
+        return jsonify({"message" : 'Request approved successfully', "status" : "success"}), 200                                                  
+        
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
     
-@request_bp.post('/request/decline/<request_id>')
+@request_bp.patch('/decline/<request_id>')
 @jwt_required()
 def decline_request(request_id):
     try:
-        uid = get_jwt_identity()
-        declined = Request_db.decline_request(request_id)
-        title = Request_db.get_by_request_id(request_id)['title']
+        request = Request_db.get_by_request_id(request_id)
+        if not request:
+            return jsonify({"message": f"Request with id '{request_id}' not found", "status": "error"}), 404
+        
+        title = request['title']
+        sender_id = request['sender']['id']
+        
+        details = {'status': 'declined'}
+        declined = Request_db.update_request_dtls(request_id, details)
+        if not declined:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
         
         not_title = "Request Declined"
-        not_receivers = [uid]
+        not_receivers = [sender_id]
         not_type = "Request"
         not_message = f"Your request '{title}' has been declined. Check it out in your requests tab!"
-        not_status = "unread"
-        not_sentAt = datetime.now()
-        notification = Notification(not_title, not_receivers, not_type, not_message, not_status, not_sentAt)
+        notification = Notification(not_title, not_receivers, not_type, not_message)
 
         Notifications.send_notification(notification)
-        return jsonify({"message" : 'Request declined', "status" : "success"})                                                   
+        
+        return jsonify({"message" : 'Request declined successfully', "status" : "success"}), 200                                                  
+        
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
-
-@request_bp.get('/request/delete/<request_id>') 
+        return jsonify(return_error(e)), 500
+            
+@request_bp.delete('/delete/<request_id>') 
 def delete_request(request_id):
     try:
-        deleted = Request_db.delete_request(request_id)
+        request = Request_db.get_by_request_id(request_id)
+        if not request:
+            return jsonify({"message": f"Request with id '{request_id}' not found", "status": "error"}), 404
         
-        if deleted:
-            return jsonify({"message" : 'Request deleted successfully!', "status" : "success"}), 200     
-        else:
-            return jsonify({"message" : 'The request was unsuccessful!', "status" : "danger"}), 500  
+        details = {'deleted_at': datetime.now()}
+        
+        deleted = Request_db.update_request_dtls(request_id, details)
+        if not  deleted:
+            return jsonify({"message" : 'Could not delete request. Try again!', "status" : "danger"}), 500  
+        
+        return jsonify({"message" : 'Request deleted successfully!', "status" : "success"}), 200     
+        
     except Exception as e:
-        return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
+        return jsonify(return_error(e)), 500
