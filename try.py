@@ -22,17 +22,17 @@ def verify_smtp_connection():
     except Exception as e:
         print(f"SMTP connection failed: {str(e)}")
         
-def update_user_stacks():
+def update_users():
     all_users = list(User_db.get_all_users())
     count = 0
     
     for user in all_users:
-        stack = user['stack']
-        uid = user['uid']
+        if user['avatar'] == 'NIL':
+            uid = user['uid']
         
-        User_db.update_user(uid, {"stack": stack.lower()})
-        count += 1
+            User_db.update_user(uid, {'avatar': None})
+            count += 1
         
     return count
         
-
+# print(update_users())

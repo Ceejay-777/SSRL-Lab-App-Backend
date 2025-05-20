@@ -10,17 +10,14 @@ class Userdb:
         return self.collection.insert_one(user.__dict__).inserted_id
         
     def get_user_by_role(self, role):
-        return self.collection.find({"role": role, "deleted_at": {'exists': False}})
+        return self.collection.find({"role": role, "deleted_at": {"$exists": False}})
     
     def get_user_fullname(self, uid):
         user = self.collection.find_one({"uid" : uid})
         return user["fullname"]
     
-    def get_user_by_role_one(self, role):
-        return self.collection.find_one({"role": role})
-    
-    def get_user_by_uid(self, user_uid):
-        return self.collection.find_one({"uid": user_uid, "deleted_at": {'$exists': False}})
+    def get_user_by_uid(self, uid):
+        return self.collection.find_one({"uid": uid, "deleted_at": {'$exists': False}})
     
     def get_user_by_oid(self, user_id):
         return self.collection.find_one({"_id": ObjectId(user_id)})
@@ -59,7 +56,7 @@ class Userdb:
             return {"success": False, "error": str(e)}
         
 class User:
-    def __init__(self, firstname, surname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar, task_id, bio, location, bday, datetime_created, suspended=None, created_at=None) -> None:
+    def __init__(self, firstname, surname, hashed_pwd, uid, stack, niche, role, phone_num, email, avatar, mentors, bio, bday, location=None, suspended=None, created_at=None) -> None:
         self.firstname = firstname, 
         self.surname = surname
         self.hashed_pwd = hashed_pwd
@@ -69,12 +66,11 @@ class User:
         self.role = role
         self.phone_num = phone_num
         self.email = email
-        self.mentor_id = mentor_id
+        self.mentors = mentors or []
+        self.location = location or None
         self.avatar = avatar
-        self.task_id = task_id   
-        self.datetime_created = datetime_created
+        self.created_at = created_at
         self.bio = bio
-        self.location = location
         self.bday = bday
-        self.suspended = suspended
+        self.suspended = suspended or False
         self.created_at = created_at if created_at else datetime.now()

@@ -11,8 +11,9 @@ import json
 from werkzeug.utils import secure_filename
 from models.user import User, Userdb
 from models.project import Project, Projectdb
+from funcs import return_error
 
-personnel_bp = Blueprint('personnel', __name__)
+personnel_bp = Blueprint('personnel', __name__, url_prefix='/personnel')
 
 User_db = Userdb()
 Request_db = Requestdb()
@@ -29,10 +30,9 @@ def home():
         
         user_profile = User_db.get_user_by_uid(uid)
         if not user_profile:
-            return jsonify({"message": "User not found", "status": "error"}), 404
+            return jsonify({"message": "User with uid '{uid}' not found", "status": "error"}), 404
         
-        uid = user_profile["uid"]
-        user_role =user_profile["role"]
+        user_role = user_profile["role"]
         stack = user_profile["stack"]
         firstname = user_profile["firstname"]
         avatar = user_profile["avatar"]
@@ -57,26 +57,26 @@ def home():
         return jsonify(response), 200
     
     except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+        return jsonify(return_error(e)), 500
 
-@personnel_bp.get('/view/members')
+@personnel_bp.get('/view_members')
 @jwt_required()
 def view_members():
     try:
         uid = get_jwt_identity()
+        
         user = User_db.get_user_by_uid(uid)
         if not user:
             return jsonify({'message': 'User not found', 'status': 'error'}), 404
-        
         
         admins = list(User_db.get_user_by_role(role = "Admin"))
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
         
-        softlead = [lead for lead in leads if lead['stack'] == "Software"]
-        hardlead = [lead for lead in leads if lead['stack'] == "Hardware"]
-        softinterns = [intern for intern in interns if intern['stack'] == "Software"]
-        hardinterns = [intern for intern in interns if intern['stack'] == "Hardware"]
+        softlead = [lead for lead in leads if lead['stack'] == "software"]
+        hardlead = [lead for lead in leads if lead['stack'] == "hardware"]
+        softinterns = [intern for intern in interns if intern['stack'] == "software"]
+        hardinterns = [intern for intern in interns if intern['stack'] == "hardware"]
         
         response = {
         "admins" : admins,
@@ -87,94 +87,78 @@ def view_members():
         "status" : "success"
         } 
         return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
-@personnel_bp.get('/get_soft_members')
+    except Exception as e:
+        return jsonify(return_error(e)), 500
+    
+@personnel_bp.get('/get_members_identity/<role>')
 @jwt_required()
-def get_soft_members():
+def get_members_identity(role):
     try:
+        admins = list(User_db.get_user_by_role(role = "Admin"))
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
         
-        softlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Software"]
-        softinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Software"]
+        admins_identity = [{"id": admin['uid'], "name": admin['fullname']} for admin in admins]
+        softleads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "software"]
+        softinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "software"]
+        hardleads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "hardware"]
+        hardinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "hardware"]
         
-        response = {
-        "members": softlead + softinterns,
-        "status" : "success"
-        } 
+        if role == 'softmembers':
+            response = {'members': softleads + softinterns, 'status': 'success'}
+            
+        elif role == 'hardmembers':
+            response = {'members': hardleads + hardinterns, 'status': 'success'}
+            
+        elif role == 'allmembers':
+            response = {'members': admins_identity + softleads + softinterns + hardleads + hardinterns, 'status': 'success'}
+            
+        elif role == 'admins':
+            response = {'members': admins_identity, 'status': 'success'}
+            
+        elif role == 'leads':
+            response = {'members': softleads + hardleads, 'status': 'success'}
+            
+        elif role == 'softleads':
+            response = {'members': softleads, 'status': 'success'}
+            
+        elif role == 'hardleads':
+            response = {'members': hardleads, 'status': 'success'}
+            
+        elif role == 'softinterns':
+            response = {'members': softinterns, 'status': 'success'}
+            
+        elif role == 'hardinterns':
+            response = {'members': hardinterns, 'status': 'success'}
+            
+        elif role == 'admins_and_all_members':
+            response = {'members': admins_identity + softleads + softinterns + hardleads + hardinterns, 'status': 'success'}
+            
+        else:
+            response = {'message': 'Invalid role', 'status': 'error'}
+        
         return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
     
-@personnel_bp.get('/get_hard_members') #Personnel tab 
-@jwt_required()
-def get_hard_members():
-    try:
-        leads = list(User_db.get_user_by_role(role = "Lead"))
-        interns = list(User_db.get_user_by_role(role="Intern"))
-        
-        hardlead = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "Hardware"]
-        hardinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "Hardware"]
-        
-        response = {
-        "members": hardlead + hardinterns,
-        "status" : "success"
-        } 
-        return jsonify(convert_to_json_serializable(response)), 200
     except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
-    
-@personnel_bp.get('/get_all_members') #Personnel tab 
-@jwt_required()
-def get_all_members():
-    try:
-        leads = list(User_db.get_user_by_role("Lead"))
-        interns = list(User_db.get_user_by_role("Intern"))
-        
-        leads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads]
-        interns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns]
-        
-        response = {
-        "members": leads +interns,
-        "status" : "success"
-        } 
-        return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
+        return jsonify(return_error(e)), 500
 
-@personnel_bp.get('/get_all_members_and_admins') 
+@personnel_bp.get('/get_profile/<requested_uid>') 
 @jwt_required()
-def get_all_leads_and_admins():
-    try:
-        admins = list(User_db.get_user_by_role("Admin"))
-        leads = list(User_db.get_user_by_role("Lead"))
-        
-        admins = [{"id": admin['uid'], "name": admin['fullname']} for admin in admins]
-        leads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads]
-        
-        response = {
-        "members": admins + leads,
-        "status" : "success"
-        } 
-        return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:
-        return jsonify({'message': f"Something went wrong: {e}", 'status': 'error'}), 500
-
-@personnel_bp.get('/personnel/get/<requested_uid>') 
-def show_user_profile(requested_uid):
+def get_member_profile(requested_uid):
     try:
         requested_profile = User_db.get_user_by_uid(requested_uid)
         if not requested_profile:
-            return jsonify({'message': 'Personnel not found', 'status': 'error'})
+            return jsonify({'message': f"Personnel with uid '{requested_uid}' not found", 'status': 'error'})
         
-        response = {"requested_profile" : requested_profile, "status" : "success" }
+        response = {"profile" : requested_profile, "status" : "success" }
+        
         return jsonify(convert_to_json_serializable(response)), 200
-    except Exception as e:  
-        return jsonify({"message": f"Something went wrong: {e}", "status": "error"}), 500
     
-@personnel_bp.post('/personnel/admin_create_user')
+    except Exception as e:  
+        return jsonify(return_error(e)), 500
+    
+@personnel_bp.post('/admin_create_user')
 @jwt_required()
 @admin_and_lead_role_required
 def create_user():
@@ -184,28 +168,28 @@ def create_user():
         
         firstname =data.get("firstname")
         surname =data.get("lastname")
+        pwd = generate.password()
+        hashed_pwd = generate_password_hash(pwd)
         stack =data.get("stack")
         niche =data.get("niche")
         role =data.get("role")
         phone_num =data.get("phone_num")
         email =data.get("email")
-        mentor_id = "NIL"
-        task_id = "NIL"
-        bio =data.get("bio", "NIL")
-        location = "NIL"
-        bday =data.get("bday", "NIL")
-        now = datetime.now().strftime
-        month = now("%B")
-        year =  now("%Y")
-        datetime_created = "{0}, {1}".format(month, year)
-        fullname = "{0} {1}".format(surname, firstname)
-        pwd = generate.password()
-        hashed_pwd = generate_password_hash(pwd)
-        uid = generate.user_id(firstname)
-        avatar_url = 'NIL'
+        bio =data.get("bio", None)
+        bday =data.get("bday", None)
+        avatar_url = None
         
+        while True:
+            uid = generate.user_id(firstname)
+            
+            if User_db.get_user_by_uid(uid):
+                continue
+            else:
+                break
+            
         avatar = request.files.get("avatar", None)
         avatar_msg = ''
+        
         if avatar :
             if not allowed_file(avatar.filename):
                 return {'message': 'Invalid avatar file type', 'status': 'error'}, 400
@@ -228,7 +212,7 @@ def create_user():
                 return {'message': f'avatar upload failed: {str(e)}', 'status': 'error'}, 500
         
         
-        user = User(firstname, surname, fullname, hashed_pwd, uid, stack, niche, role, phone_num, email, mentor_id, avatar_url, task_id, bio, location, bday, datetime_created)
+        user = User(firstname=firstname, surname=surname, hashed_pwd=hashed_pwd, uid=uid, stack=stack, nich=niche, role=role, phone_num=phone_num, email=email, avatar=avatar_url, bio=bio, bday=bday)
         
         user_id= User_db.create_user(user)
         if not user_id:

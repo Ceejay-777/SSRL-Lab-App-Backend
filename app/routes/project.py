@@ -36,17 +36,15 @@ def create_project():
             response = {"message" : f"Project with name '{name}' already exists.", "status": "error"}
             return jsonify(response)
             
-        team_avatars = []
-        
         for lead in leads:
             profile = User_db.get_user_by_uid(lead["id"])
             if not profile:
                 continue
             
             avatar = profile['avatar']
-            if not avatar:
-                team_avatars.append(avatar['secure_url'])
-            else: team_avatars.append(None)
+            if avatar:
+                lead.update({"avatar": avatar['secure_url']})
+            else: lead.update({"avatar": None})
                     
         for member in team_members:
             profile = User_db.get_user_by_uid(member['id'])
@@ -54,26 +52,31 @@ def create_project():
                 continue
                     
             avatar = profile['avatar']
-            if not avatar :
-                team_avatars.append(avatar['secure_url'])
-            else: team_avatars.append(None)
+            if avatar:
+                member.update({"avatar": avatar['secure_url']})
+            else: member.update({"avatar": None})
             
         project_id = get_la_code('pjt')
            
-        project = Project(project_id=project_id, name=name, description=description, objectives=objectives, leads=leads, team_members=team_members, team_avatars=team_avatars, stack=stack, deadline=deadline, created_by=uid) 
+        project = Project(project_id=project_id, name=name, description=description, objectives=objectives, leads=leads, team_members=team_members, stack=stack, deadline=deadline, created_by=uid) 
         
         project_created = Project_db.create_project(project)
         if not project_created:
             response = convert_to_json_serializable({"message" : "Unable to create project. Please try again", "status" : "error"})
             return jsonify(response), 500
         
+        project = Project_db.get_by_project_id(project_id=project_id)
+        
+        leads_id = [lead['id'] for lead in leads]
+        team_members_id = [member['id'] for member in team_members]
+        
         not_title = "New Project"
-        not_receivers = leads + team_members
+        not_receivers = leads_id + team_members_id
         not_type = "Project"
         not_message = f"You have been added to a new project '{name}'. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
         
-        response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project_id" : project_id})
+        response = convert_to_json_serializable({"message" : "Project created successfully!", "status" : "success", "project" : project})
         Notifications.send_notification(notification)
         return jsonify(response), 200
             
@@ -129,7 +132,7 @@ def mark_project_completed(project_id):
         
         name = project.get('name')
         members = project['leads'] + project['team_members']
-        members = [member['id'] for member in members]
+        members_id = [member['id'] for member in members]
         
         if (project['status'] == 'completed'):
             return jsonify({"message": 'Project marked as complete', "status" : "success"}), 200
@@ -139,7 +142,7 @@ def mark_project_completed(project_id):
             return jsonify({"message" : 'An error occurred! Please try again', "status" : "danger"}), 500
         
         not_title = "Project Marked as Complete"
-        not_receivers = members
+        not_receivers = members_id
         not_type = "Project"
         not_message = f"Project '{name}' has been marked as complete. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
@@ -160,7 +163,7 @@ def mark_project_incompleted(project_id):
         
         name = project.get('name')
         members = project['leads'] + project['team_members']
-        members = [member['id'] for member in members]
+        members_id = [member['id'] for member in members]
         status = project['status']
         
         if (status == 'incompleted'):
@@ -171,7 +174,7 @@ def mark_project_incompleted(project_id):
             return jsonify({"message" : 'An error occurred! Please try again', "status" : "danger"}), 500
         
         not_title = "Project Marked as Incomplete"
-        not_receivers = members
+        not_receivers = members_id
         not_type = "Project"
         not_message = f"Project '{name}' has been marked as incomplete. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
@@ -195,8 +198,9 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
             return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         leads = project['leads']
-        leads = [lead['id'] for lead in leads]
+        leads_ids = [lead['id'] for lead in leads]
         team_members = project['team_members']
+        team_members_ids = [team_member['id'] for team_member in team_members]
         name = project['name']
         
         if role != 'Admin' or uid not in leads:
@@ -207,7 +211,7 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
         
         not_title = "Project Edited"
-        not_receivers = leads + team_members
+        not_receivers = leads_ids + team_members_ids
         not_type = "Project"
         not_message = f"Project '{name}' has been edited by {uid}. Check it out in your projects tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)
@@ -230,14 +234,14 @@ def delete_project(project_id):
         
         name = project['name']
         members = project['leads'] + project['team_members']
-        members = [member['id'] for member in members]
+        members_ids = [member['id'] for member in members]
         deleted = Project_db.delete_project(project_id)
             
         if not deleted:
             return jsonify({"message": 'The project could not be deleted. Please try again', "status" : "danger"}), 500
         
         not_title = "Project Deleted"
-        not_receivers = members
+        not_receivers = members_ids
         not_type = "Project"
         not_message = f"Project '{name}' has been deleted by {uid}."
         notification = Notification(not_title, not_receivers, not_type, not_message)
@@ -271,7 +275,7 @@ def submit_project_doc(project_id):
         
         name = project['name']
         members = project['leads'] + project['team_members']
-        members = [member['id'] for member in members]
+        members_ids = [member['id'] for member in members]
         
         try:
             uploaded = upload_func(submission, f"SSRL_Lab_App/projects/{project_id}")
@@ -290,7 +294,7 @@ def submit_project_doc(project_id):
             return jsonify({"message" : f"Couldn't upload your project at the moment! {e}", "status" : "error"}),500
         
         not_title = "Project Document Submission"
-        not_receivers = members
+        not_receivers = members_ids
         not_type = "Project"
         not_message = f"A document: {filename} has been submitted for project '{name}' by {uid}."
         notification = Notification(not_title, not_receivers, not_type, not_message)
@@ -317,7 +321,7 @@ def submit_project_link(project_id):
         
         name = project['name']
         members = project['leads'] + project['team_members']
-        members = [member['id'] for member in members]
+        members_ids = [member['id'] for member in members]
         
         link_submission = {"title": title, "link": link, "date_submitted": datetime.now()}
         submitted = Project_db.submit_link(project_id, link_submission)
@@ -326,7 +330,7 @@ def submit_project_link(project_id):
             return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
         
         not_title = "Project Link addition"
-        not_receivers = members
+        not_receivers = members_ids
         not_type = "Project"
         not_message = f"A link has been added for project '{name}' by {uid}."
         notification = Notification(not_title, not_receivers, not_type, not_message)
@@ -351,10 +355,14 @@ def send_project_announcement(project_id):
             return jsonify({"message": "Project with ID '{project_id}' not found", "status": "error"}), 404
 
         name = project['name']
-        leads = project['leads']
-        members = project['team_members']
-        all = leads  + members
         
+        leads = project['leads']
+        leads_ids = [lead['id'] for lead in leads]
+        
+        members = project['team_members']
+        members_ids = [member['id'] for member in members]
+        
+        all = leads_ids  + members_ids
         recepient = (leads, all)[receivers == "all"]
         recepient.append(uid)
         
@@ -386,14 +394,19 @@ def send_feedback(project_id):
             return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         name = project['name']
-        members = project['leads'] + project['team_members']
+        
+        leads = project['leads']
+        leads_ids = [lead['id'] for lead in leads]
+        
+        members = project['team_members']
+        members_ids = [member['id'] for member in members]
         
         send_feedback = Project_db.send_feedback(project_id, sender, feedback)
         if not send_feedback:
             return jsonify({"message": "Could not send feedback right now! Try again", "status" : "error"}), 500
         
         not_title = f"New Project Feedback: {name}"
-        not_receivers = members
+        not_receivers = leads_ids + members_ids
         not_type = "Project"
         not_message = f"A new feedback has been created for project {name} by {uid}, check it out in the projects tab."
         notification = Notification(not_title, not_receivers, not_type, not_message)

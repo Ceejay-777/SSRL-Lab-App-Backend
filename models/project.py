@@ -58,14 +58,13 @@ class Projectdb:
         return self.collection.update_one({"project_id":project_id}, {"$push": {"feedback":{'feedback': feedback, 'sender': sender, 'created_at': datetime.now()}}}).modified_count>0
 
 class Project:
-    def __init__(self, project_id, name, description, objectives, leads, team_members, team_avatars, stack, created_by, deadline, created_at=None, status=None, submissions=None) -> None:
+    def __init__(self, project_id, name, description, objectives, leads, team_members, stack, created_by, deadline, created_at=None, status=None, submissions=None) -> None:
         self.project_id = project_id
         self.name = name
         self.description = description
         self.objectives = objectives
         self.team_members = team_members
         self.leads = leads
-        self.team_avatars = team_avatars
         self.stack = stack
         self.created_by = created_by
         self.deadline = deadline
