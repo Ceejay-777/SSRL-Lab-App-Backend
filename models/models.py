@@ -117,62 +117,6 @@ class lost_eqptdb:
     def delete_lost_eqpt(self, eqpt_id):
         return self.collection.delete_one({"_id":ObjectId(eqpt_id)}).deleted_count>0
     
-    
-class Requestdb:
-    def __init__(self) -> None:
-        self.collection = Requests
-    
-    def insert_new(self, request):
-        return self.collection.insert_one(request.__dict__).inserted_id
-    
-    def get_all(self):
-        return self.collection.find().sort("date_time", -1)
-    
-    # def get_all(self):
-    #     return self.collection.find().sort("date_time", -1)
-    
-    def get_by_request_id(self, _id):
-        return self.collection.find_one({"_id":ObjectId(_id)})
-
-    def get_by_isMember(self, uid):
-        return self.collection.find({'$or': [
-               {'sender': uid},
-               {'receipient': uid}
-           ]}).sort("date_time", -1)
-        
-    def get_by_isMember_limited(self, uid):
-        return self.collection.find({'$or': [
-               {'sender': uid},
-               {'receipient': uid}
-           ]}).sort("date_time", -1).limit(3)
-    
-    def get_by_sender(self, uid): # Remove
-        return self.collection.find({"sender":uid}).sort("date_time", -1)
-    
-    def get_by_sender_limited(self, uid): # Remove
-        return self.collection.find({"sender":uid}).sort("date_time", -1).limit(3)
-    
-    def get_by_reciepient(self, uid): # Remove
-        return self.collection.find({"receipient":uid}).sort("date_time", -1)
-    
-    def get_by_receipient_limited(self, uid): # Remove
-        return self.collection.find({"receipient":uid}).sort("date_time", -1).limit(3)
-    
-    def update_request_dtls(self,request_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":dtls.__dict__}).modified_count>0
-    
-    def delete_request(self, request_id):
-        return self.collection.updated_one({"_id":ObjectId(request_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
-    
-    def approve_request(self,request_id):
-        return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":{"status":"Approved"}}).modified_count>0
-    
-    def decline_request(self,request_id):
-        return self.collection.update_one({"_id":ObjectId(request_id)},{"$set":{"status":"Declined"}}).modified_count>0
-    
-    def update_many_reqs(self):
-        return self.collection.update_many({}, {"$set": {"avatar": "NIL"}})
-    
 class Reportdb:
     def __init__(self) -> None:
         self.collection = Reports
@@ -356,16 +300,6 @@ class updateAdmin:
         self.location = location
         self.bday = bday
         
-class Request:
-    def __init__(self, title, type, sender, avatar, receipient, request_dtls, created_at=None, status="Pending") -> None:
-        self.title = title
-        self.type = type
-        self.sender = sender
-        self.avatar = avatar
-        self.receipient = receipient
-        self.status = status
-        self.created_at = created_at or datetime.now()
-        self.request_dtls = request_dtls
 class Report:
     def __init__(self, title, stack, report_type, receiver, sender, avatar, submissions=None, feedback=None, created_at=None):
         self.title = title 

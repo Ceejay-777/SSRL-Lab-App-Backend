@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Reportdb, Requestdb, Todosdb, Notificationsdb, Notification, AllowedExtension, Request
+from models.models import generate, updatePwd, Reportdb, Todosdb, Notificationsdb, Notification, AllowedExtension
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -11,8 +11,10 @@ import json
 from werkzeug.utils import secure_filename
 from models.user import Userdb
 from models.project import Project, Projectdb
+from models.request import Request, Requestdb
+from funcs import return_error, get_la_code
 
-request_bp = Blueprint('request', __name__)
+request_bp = Blueprint('request', __name__, url_prefix='/request')
 
 User_db = Userdb()
 Request_db = Requestdb()
@@ -21,40 +23,49 @@ Project_db = Projectdb()
 Todos_db = Todosdb()
 Notifications = Notificationsdb()
 
-@request_bp.post('/request/create')
+@request_bp.post('/create_request')
 @jwt_required()
 def create_request():
     try:
         uid = get_jwt_identity()
+        user = User_db.get_user_by_uid(uid)
+        name =  user.get('surname') + " " + user.get('firstname')
+        
+        avatar = user.get('avatar', None)
+        if avatar:
+            avatar = avatar['secure_url']
+       
         data = request.json
         print(data)
         title = data.get("title")
         type = data.get("type")
-        request_dtls = data.get("request_dtls")
+        request_details = data.get("request_details")
         receipient = data.get("receipient")
-        sender_name = User_db.get_user_fullname(uid)
-        sender = {'id': uid, 'name': sender_name}
-        avatar = User_db.get_user_by_uid(uid).get('avatar', 'NIL')
+        purpose = data.get("purpose")
+        
+        sender = {'id': uid, 'name': name, 'avatar': avatar}
+        
+        while True:
+            request_id = get_la_code('rqt')
+            if not Request_db.get_by_request_id(request_id):
+                break
+        
+        new_request = Request(title=title, type=type, sender=sender, receipient=receipient, request_details=request_details, purpose=purpose, request_id=request_id)
+        
+        created = Request_db.create_request(new_request)
+        if not created:
+            return jsonify({"message" : "Request unable to be submitted. Please try again!", "status" : "error"}), 500
         
         rec_not_title = "You received a new Request"
         rec_not_receivers = receipient
         rec_not_type = "Request"
-        rec_not_message = f"You just received a new request from {sender_name}. Check it out in your requests tab!"
-        rec_not_status = "unread"
-        rec_not_sentAt = datetime.now()
-        notification = Notification(rec_not_title, rec_not_receivers, rec_not_type, rec_not_message, rec_not_status, rec_not_sentAt)
-        
-        new_request = Request(title, type, sender, avatar, receipient, request_dtls)
-        request_id = Request_db.insert_new(new_request)
-        if not request_id:
-            return jsonify({'message': "Couldn't send request.Something went wrong", 'status': 'error'}), 500
+        rec_not_message = f"You just received a new request from {name}. Check it out in your requests tab!"
+        notification = Notification(rec_not_title, rec_not_receivers, rec_not_type, rec_not_message)
             
-        if request_id: 
-            Notifications.send_notification(notification)
-            return jsonify({"message" : "Request submitted successfully!", "status" : "success"}), 200
-        else:
-            return jsonify({"message" : "Request unable to be submitted. Please try again!", "status" : "error"}), 500
+        Notifications.send_notification(notification)
         
+        return jsonify({"message" : "Request submitted successfully!", "status" : "success"}), 200
+    
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     

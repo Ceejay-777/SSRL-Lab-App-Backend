@@ -1,16 +1,16 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Reportdb, Requestdb, Todosdb, Notificationsdb, Notification, AllowedExtension
-from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
+from models.models import generate, Reportdb, Todosdb, Notificationsdb, Notification
+from flask_bcrypt import  generate_password_hash
 from funcs import convert_to_json_serializable
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_mail import Message
 from app.extensions import mail
-from datetime import datetime, timedelta
+from datetime import datetime
 from funcs import *
 import json
-from werkzeug.utils import secure_filename
 from models.user import User, Userdb
-from models.project import Project, Projectdb
+from models.project import Projectdb
+from models.request import Requestdb
 from funcs import return_error
 
 personnel_bp = Blueprint('personnel', __name__, url_prefix='/personnel')

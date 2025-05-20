@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Reportdb, Requestdb, Todosdb, Notificationsdb, Notification, AllowedExtension, Request
+from models.models import generate, updatePwd, Reportdb, Todosdb, Notificationsdb, Notification, AllowedExtension
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -11,6 +11,7 @@ import json
 from werkzeug.utils import secure_filename
 from models.user import Userdb
 from models.project import Project, Projectdb
+from models.request import Request, Requestdb
 
 notification_bp = Blueprint('notification', __name__)
 
