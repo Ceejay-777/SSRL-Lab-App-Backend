@@ -28,22 +28,6 @@ class Todosdb:
     def get_todo_by_user_id(self, user_id):
         return self.collection.find_one({"uid":user_id})
     
-    # def get_todos_by_user_id_limited(self, user_id):
-    #     return sorted(self.collection.find_one({"uid":user_id}, {"_id": 0, "todo": 1}).get('todo', []), key=lambda x: x["id"], reverse=True)[0:4]
-    
-    def get_todos_by_user_id_limited(self, user_id):
-        doc = self.collection.find_one({"uid": user_id}, {"_id": 0, "todo": 1})
-        
-        if not doc or "todo" not in doc:
-            return []
-
-        return sorted(
-            doc.get("todo", []), 
-            key=lambda x: datetime.fromisoformat(x["id"]), 
-            reverse=True
-        )[:4]
-        
-        
 class Todo:
     def __init__(self, uid, todo=None, created_at=None):
         self.uid = uid

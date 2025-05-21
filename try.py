@@ -1,9 +1,9 @@
 from main import app
-from models.models import Requestdb
 from models.user import Userdb  
+from models.models import Notificationsdb
 
-Request_db = Requestdb()
 User_db = Userdb()
+Notifications_db = Notificationsdb()
 
 # def update_request_time():
 #     Request_db.update_many_reqs()
@@ -34,5 +34,18 @@ def update_users():
             count += 1
         
     return count
+
+def update_notifications():
+    all_notifications = list(Notifications_db.get_all())
+    
+    for notification in all_notifications:
+        _id = notification['_id']
+        sentAt = notification.get('sentAt')
+        
+        if sentAt:
+            details = {'created_at': sentAt}
+            updated = Notifications_db.update_notification_details(_id, details)
+            unset = Notifications_db.unset_field(_id, 'sentAt')
         
 # print(update_users())
+# update_notifications()

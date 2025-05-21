@@ -10,15 +10,18 @@ class Notificationsdb:
     def __init__(self):
         self.collection = Notifications
         
+    def get_all(self):
+        return self.collection.find()
+        
     def send_notification(self, dtls):
         print("Notification Created")
         return self.collection.insert_one(dtls.__dict__).inserted_id
     
     def get_by_isMember(self, uid):
-        return self.collection.find({'receivers' : uid}).sort("sentAt", DESCENDING)
+        return self.collection.find({'receivers' : uid}).sort("created_at", DESCENDING)
     
     def get_by_isMember_limited(self, uid):
-        return self.collection.find({'receivers' : uid}).sort("sentAt", DESCENDING).limit(3)
+        return self.collection.find({'receivers' : uid}).sort("created_at", DESCENDING).limit(3)
     
     def mark_as_read(self, note_id):
         return self.collection.update_one({"_id": ObjectId(note_id)}, {"$set": {"status": "read"}}).modified_count>0
@@ -32,6 +35,11 @@ class Notificationsdb:
     def delete_notification(self, note_id):
         return self.collection.delete_one({"_id": ObjectId(note_id)}).deleted_count>0
     
+    def update_notification_details(self, _id, dtls):
+        return self.collection.update_one({"_id": ObjectId(_id)}, {"$set": dtls}).modified_count>0
+    
+    def unset_field(self, _id, field):
+        return self.collection.update_one({"_id": ObjectId(_id)}, {"$unset": {field: 1}}).modified_count>0
     
 class Eqptdb:
     def __init__(self) -> None:
@@ -77,8 +85,6 @@ class lost_eqptdb:
     
     def delete_lost_eqpt(self, eqpt_id):
         return self.collection.delete_one({"_id":ObjectId(eqpt_id)}).deleted_count>0
-    
-
 
 class Inventorydb:
     def __init__(self) -> None:
@@ -222,8 +228,6 @@ def formatAttendance(dtls):
 
 def sortFunc(e):
   return e["date_time"]
-
-
 
 if "__name__"=="__main__":
     eqpt_db = Eqptdb()
