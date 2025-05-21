@@ -1,18 +1,17 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Reportdb, Todosdb, Notificationsdb, Notification, AllowedExtension
-from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
+from models.models import Todosdb, Notificationsdb, Notification
+from flask_bcrypt import check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
-from flask_mail import Message
-from app.extensions import mail
-from datetime import datetime, timedelta
+from datetime import datetime
 from funcs import *
 import json
 from werkzeug.utils import secure_filename
 from models.user import Userdb
-from models.project import Project, Projectdb
+from models.project import Projectdb
 from models.request import Request, Requestdb
 from funcs import return_error, get_la_code
+from models.report import Reportdb
 
 request_bp = Blueprint('request', __name__, url_prefix='/request')
 
@@ -23,7 +22,7 @@ Project_db = Projectdb()
 Todos_db = Todosdb()
 Notifications = Notificationsdb()
 
-@request_bp.post('/create_request')
+@request_bp.post('/create')
 @jwt_required()
 def create_request():
     try:

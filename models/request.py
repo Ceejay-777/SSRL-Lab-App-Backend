@@ -1,6 +1,5 @@
-from bson.objectid import ObjectId 
 from models import Requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from pymongo import DESCENDING
 
 class Requestdb:
@@ -17,10 +16,10 @@ class Requestdb:
         return self.collection.find_one({"request_id": request_id})
 
     def get_by_isMember(self, uid):
-        return self.collection.find({'$or': [{'sender': uid}, {'receipient': uid}]}).sort("created_at", DESCENDING)
+        return self.collection.find({'$or': [{'sender.id': uid}, {'receipient': uid}]}).sort("created_at", DESCENDING)
         
     def get_by_isMember_limited(self, uid):
-        return self.collection.find({'$or': [{'sender': uid}, {'receipient': uid}]}).sort("created_at", DESCENDING).limit(3)
+        return self.collection.find({'$or': [{'sender.id': uid}, {'receipient': uid}]}).sort("created_at", DESCENDING).limit(3)
     
     def update_request_dtls(self, request_id, details):
         return self.collection.update_one({"request_id": request_id},{"$set": details}).modified_count>0

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Reportdb, Todosdb, Notificationsdb, Notification, AllowedExtension, Todo
+from models.models import generate, updatePwd, Todosdb, Notificationsdb, Notification, AllowedExtension, Todo
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 from models.user import Userdb
 from models.project import Project, Projectdb
 from models.request import Request, Requestdb
+from models.report import Report, Reportdb
 
 todo_bp = Blueprint('todo', __name__)
 

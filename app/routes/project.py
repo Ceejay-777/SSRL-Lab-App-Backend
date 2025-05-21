@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Reportdb, Todosdb, Notificationsdb, Notification, AllowedExtension
+from models.models import generate, updatePwd, Todosdb, Notificationsdb, Notification, AllowedExtension
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from flask_mail import Message
@@ -10,6 +10,7 @@ import json
 from werkzeug.utils import secure_filename
 from models.project import Project, Projectdb
 from models.request import Request, Requestdb
+from models.report import Report, Reportdb
 from models.user import Userdb
 
 project_bp = Blueprint('project', __name__, url_prefix='/project')

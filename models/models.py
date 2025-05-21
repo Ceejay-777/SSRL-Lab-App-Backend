@@ -117,69 +117,7 @@ class lost_eqptdb:
     def delete_lost_eqpt(self, eqpt_id):
         return self.collection.delete_one({"_id":ObjectId(eqpt_id)}).deleted_count>0
     
-class Reportdb:
-    def __init__(self) -> None:
-        self.collection = Reports
-    
-    def insert_new(self, request):
-        return self.collection.insert_one(request.__dict__).inserted_id 
-    
-    def get_all(self):
-        return self.collection.find({'softdeleted_at': None}).sort("created_at", DESCENDING)
-    
-    def get_all_limited(self):
-        return self.collection.find({'softdeleted_at': None}).sort("created_at", DESCENDING).limit(3)
-    
-    def get_by_stack(self, stack):
-        return self.collection.find({"stack": stack, 'softdeleted_at': None}).sort("created_at", DESCENDING)
-    
-    def get_by_isMember(self, uid):
-        return self.collection.find({'$or': [
-               {'sender': uid},
-               {'receiver': uid}
-           ], 'softdeleted_at': None}).sort("created_at", DESCENDING)
-        
-    def get_by_isMember_limited(self, uid):
-        return self.collection.find({'$or': [
-               {'sender': uid},
-               {'receiver': uid}
-           ], 'softdeleted_at': None}).sort("created_at", DESCENDING).limit(3)
-    
-    def get_by_report_id(self, _id):
-        return self.collection.find_one({"_id":ObjectId(_id)})
 
-    def get_by_sender(self, _id, uid):
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1)
-    
-    def get_by_sender_limited(self, _id, uid):
-        return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1).limit(3)
-    
-    def get_by_recipient(self, position):
-        return self.collection.find({"recipient":position}).sort("date_time", -1)
-    
-    def get_by_recipient_limited(self, position):
-        return self.collection.find({"recipient":position}).sort("date_time", -1).limit(3)
-    
-    def update_report_dtls(self,report_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":dtls.__dict__}).modified_count>0
-    
-    def give_feedback(self,report_id, dtls):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"feedback": dtls}}).modified_count>0
-    
-    def add_doc(self, report_id, doc):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.docs": doc}}).modified_count>0
-    
-    def add_link(self, report_id, link):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$push":{"submissions.links": link}}).modified_count>0
-    
-    def mark_completed(self,report_id):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Completed"}}).modified_count>0
-    
-    def mark_incomplete(self,report_id):
-        return self.collection.update_one({"_id":ObjectId(report_id)},{"$set":{"status":"Incomplete"}}).modified_count>0
-    
-    def delete_report(self, report_id):
-        return self.collection.update_one({"_id":ObjectId(report_id)}, {"$set": {"softdeleted_at": datetime.now()}}).modified_count>0
 
 class Inventorydb:
     def __init__(self) -> None:
@@ -300,37 +238,16 @@ class updateAdmin:
         self.location = location
         self.bday = bday
         
-class Report:
-    def __init__(self, title, stack, report_type, receiver, sender, avatar, submissions=None, feedback=None, created_at=None):
-        self.title = title 
-        self.stack = stack 
-        self.report_type = report_type
-        self.submissions = submissions or {"docs": [], "links": []}
-        self.feedback = feedback or []
-        self.created_at = created_at or datetime.now()
-        self.receiver = receiver
-        self.sender = sender
-        self.avatar = avatar
-class ActivityReport(Report):
-    def __init__(self, title, stack, duration, report_type,  receiver, sender, avatar, next,  completed, ongoing):
-        super().__init__(title, stack, report_type, receiver, sender, avatar)
-        
-        self.duration = duration
-        self.completed = completed
-        self.ongoing = ongoing
-        self.next = next
+
     
 class Todo:
     def __init__(self, uid, todo=None, created_at=None):
         
         self.uid = uid
         self.todo = todo or []
-        self.created_at = created_at or datetime.now()
-class ProjectReport(Report):
-    def __init__(self, title, stack, report_type, receiver, sender, avatar, summary):
-        super().__init__(title, stack, report_type, receiver, sender, avatar)
-        
-        self.summary = summary
+#         self.created_at = created_at or datetime.now()
+
+
          
 class AllowedExtension:    
     def images(filename):

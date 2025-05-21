@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import Reportdb, Todosdb, Notificationsdb, AllowedExtension, ActivityReport, ProjectReport
+from models.models import Todosdb, Notificationsdb, AllowedExtension
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
@@ -8,8 +8,9 @@ from werkzeug.utils import secure_filename
 from models.user import Userdb
 from models.project import Projectdb
 from models.request import Request, Requestdb
+from models.report import Report, Reportdb
 
-report_bp = Blueprint('report', __name__)
+report_bp = Blueprint('report', __name__, url_prefix='/report')
 
 User_db = Userdb()
 Request_db = Requestdb()
@@ -18,41 +19,58 @@ Project_db = Projectdb()
 Todos_db = Todosdb()
 Notifications = Notificationsdb()
 
-@report_bp.post('/report/create')
+@report_bp.post('/create')
 @jwt_required()
 def create_report():
-    data = request.json
-    report_type = data.get('report_type')
-    title = data.get('title')
-    receiver = data.get('receiver')
-    uid = get_jwt_identity()
-    
-    sender = User_db.get_user_by_uid(uid)
-    avatar = sender.get('avatar', 'NIL')
-    stack = sender.get('stack')
-    sender_name = sender.get('fullname')
-    sender = {'id':uid, 'name':sender_name}
-    
-    if report_type == "activity":
-        duration = data.get('duration') 
-        completed = data.get('completed', [])
-        ongoing = data.get('ongoing', [])
-        next = data.get('next', [])
-        report = ActivityReport(title=title, stack=stack, receiver=receiver, sender=sender, duration=duration, completed=completed, ongoing=ongoing, next=next, report_type=report_type, avatar=avatar)
-    elif report_type == "project":
-        summary = data.get('summary')   
-        report = ProjectReport(title=title, stack=stack, summary=summary, report_type=report_type, receiver=receiver, sender=sender,  avatar=avatar) 
-    else:
-        return jsonify({"message": "Invalid report type", "status": "error"}), 400
-    
-    report_id = Report_db.insert_new(report)
-    
-    if report_id:
+    try:
+        uid = get_jwt_identity()
+        user = User_db.get_user_by_uid(uid)
+        name = user.get('surname') + " " + user.get('firstname')
+        stack = user['stack']
+        
+        avatar = user.get('avatar')
+        if avatar:
+            avatar = avatar['secure_url']
+        
+        sender = {'id':uid, 'name':name, 'avatar': avatar}
+        
+        data = request.json
+        print(data)
+        report_type = data.get('report_type')
+        title = data.get('title')
+        receiver = data.get('receiver')
+        
+        if report_type == "activity":
+            duration = data.get('duration') 
+            completed = data.get('completed', [])
+            ongoing = data.get('ongoing', [])
+            next = data.get('next', [])
+            report_details = {'duration': duration, 'completed': completed, 'ongoing': ongoing, 'next': next}
+            
+        elif report_type == "project":
+            summary = data.get('summary')   
+            report_details = {'summary': summary}
+            
+        else:
+            return jsonify({"message": "Invalid report type", "status": "error"}), 400
+        
+        while True:
+            report_id = get_la_code('rpt')
+            if not Report_db.get_by_report_id(report_id):
+                break
+        
+        report = Report(report_type=report_type, title=title, sender=sender, receiver=receiver, report_details=report_details, stack=stack, report_id=report_id)
+        
+        report_created = Report_db.create_report(report)
+        if not report_created:
+            return jsonify({"message": "Failed to create report", "status": "error"}), 500
+            
         return jsonify({"message": "Report created successfully!", "status": "success"}), 200
-    else:
-        return jsonify({"message": "Failed to create report", "status": "error"}), 500
     
-@report_bp.get('/reports/get_all')
+    except Exception as e:
+        return jsonify(return_error(e)), 500
+    
+@report_bp.get('/get_all')
 @jwt_required()
 def get_all_reports():
     try:
@@ -74,7 +92,7 @@ def get_all_reports():
     except Exception as e:
         return jsonify({"message": f'Something went wrong: {e}', 'status': "error"}), 500
     
-@report_bp.get('/report/get_one/<report_id>')
+@report_bp.get('/get/<report_id>')
 @jwt_required()
 def get_one(report_id):
     try:

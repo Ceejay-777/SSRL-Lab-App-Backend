@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, Reportdb, Todosdb, Notificationsdb, Notification
+from models.models import generate, Todosdb, Notificationsdb, Notification
 from flask_bcrypt import  generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -11,6 +11,7 @@ import json
 from models.user import User, Userdb
 from models.project import Projectdb
 from models.request import Requestdb
+from models.report import Reportdb
 from funcs import return_error
 
 personnel_bp = Blueprint('personnel', __name__, url_prefix='/personnel')
