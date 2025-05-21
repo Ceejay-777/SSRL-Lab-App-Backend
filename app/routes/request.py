@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import Todosdb, Notificationsdb, Notification
+from models.models import Notificationsdb, Notification
 from flask_bcrypt import check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -12,6 +12,7 @@ from models.project import Projectdb
 from models.request import Request, Requestdb
 from funcs import return_error, get_la_code
 from models.report import Reportdb
+from models.todo import Todosdb
 
 request_bp = Blueprint('request', __name__, url_prefix='/request')
 

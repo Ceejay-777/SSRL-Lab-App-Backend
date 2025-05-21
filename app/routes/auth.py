@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd
+from models.models import generate
 from flask_bcrypt import Bcrypt, check_password_hash, generate_password_hash
 from funcs import convert_to_json_serializable, return_error
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.models import generate, updatePwd, Todosdb, Notificationsdb, Notification, AllowedExtension
+from models.models import generate, Notificationsdb, Notification, AllowedExtension
 from funcs import convert_to_json_serializable
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from flask_mail import Message
@@ -259,6 +259,11 @@ def delete_project(project_id):
 def submit_project_doc(project_id): 
     try:
         uid = get_jwt_identity()
+        
+        project = Project_db.get_by_project_id(project_id)
+        if not project:
+            return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
+        
         submission = request.files["doc"]
         filename = secure_filename(submission.filename)
         
@@ -280,20 +285,20 @@ def submit_project_doc(project_id):
         members_ids = [member['id'] for member in members]
         
         try:
-            uploaded = upload_file(submission, f"SSRL_Lab_App/projects/{project_id}")
+            uploaded = upload_file(submission, f"SSRL_Lab_App/project_submissions/{project_id}")
             print(uploaded)
             
             if not uploaded:
                 return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
 
-            project_submission = {"filename": filename, "download_link": uploaded["secure_url"], "submitted_at": datetime.now()}
-            submitted = Project_db.submit_doc(project_id, project_submission)
-                
-            if not submitted:
-                return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
-            
         except Exception as e:
             return jsonify({"message" : f"Couldn't upload your project at the moment! {e}", "status" : "error"}),500
+        
+        project_submission = {"filename": filename, "download_link": uploaded["secure_url"], "submitted_at": datetime.now()}
+        
+        submitted = Project_db.submit_doc(project_id, project_submission)
+        if not submitted:
+            return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
         
         not_title = "Project Document Submission"
         not_receivers = members_ids
@@ -326,8 +331,8 @@ def submit_project_link(project_id):
         members_ids = [member['id'] for member in members]
         
         link_submission = {"title": title, "link": link, "date_submitted": datetime.now()}
-        submitted = Project_db.submit_link(project_id, link_submission)
         
+        submitted = Project_db.submit_link(project_id, link_submission)
         if not submitted:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "error"}), 500
         

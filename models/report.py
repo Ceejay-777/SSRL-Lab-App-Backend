@@ -1,7 +1,6 @@
 from models import Reports
 from datetime import datetime
 from pymongo import DESCENDING
-from bson.objectid import ObjectId 
 
 class Reportdb:
     def __init__(self) -> None:
@@ -34,18 +33,6 @@ class Reportdb:
     def get_by_report_id(self, report_id):
         return self.collection.find_one({"report_id": report_id, 'deleted_at': {'$exists': False}})
 
-    # def get_by_sender(self, _id, uid):
-    #     return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1)
-    
-    # def get_by_sender_limited(self, _id, uid):
-    #     return self.collection.find({"sender":{"_id":_id, "uid":uid}}).sort("date_time", -1).limit(3)
-    
-    # def get_by_recipient(self, position):
-    #     return self.collection.find({"recipient":position}).sort("date_time", -1)
-    
-    # def get_by_recipient_limited(self, position):
-    #     return self.collection.find({"recipient":position}).sort("date_time", -1).limit(3)
-    
     def update_report_dtls(self,report_id, dtls):
         return self.collection.update_one({"report_id":report_id},{"$set": dtls}).modified_count>0
     
