@@ -38,7 +38,7 @@ def home():
         stack = user_profile["stack"]
         firstname = user_profile["firstname"]
         avatar = user_profile["avatar"]
-        todos = list(Todos_db.get_todos_by_user_id_limited(uid))
+        todos = list(Todos_db.get_todo_by_user_id_limited(uid))
         unread_notes = Notifications.get_unread_count(uid)
         
         if user_role=="Admin":
