@@ -1,9 +1,13 @@
 from main import app
 from models.user import Userdb  
 from models.models import Notificationsdb
+from models.project import Projectdb
+from datetime import datetime
+from funcs import get_la_code
 
 User_db = Userdb()
 Notifications_db = Notificationsdb()
+Project_db = Projectdb()
 
 # def update_request_time():
 #     Request_db.update_many_reqs()
@@ -47,5 +51,28 @@ def update_notifications():
             updated = Notifications_db.update_notification_details(_id, details)
             unset = Notifications_db.unset_field(_id, 'sentAt')
         
-# print(update_users())
-# update_notifications()
+def update_users():
+    all_users = list(User_db.get_all_users())
+    
+    for user in all_users:
+        uid = user['uid']
+        created_at = user.get('created_at')
+        
+        if not created_at:
+            details = {'created_at': datetime.now()}
+            updated = User_db.update_dtl(uid, details)
+            unset = User_db.unset_field(uid, 'datetime_created')
+            
+def update_projects():
+    all_projects = list(Project_db.get_all_projects())
+
+    for project in all_projects:
+        _id = project['_id']
+        pid = project.get('project_id')
+        date_created = project.get('date_created')
+        created_at = project.get('created_at')
+        team_avatar = project.get('team_avatar')
+        leads = project.get('leads')
+        team_members = project.get('team_members')
+        
+update_projects()

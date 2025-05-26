@@ -26,10 +26,20 @@ class Todosdb:
         return self.collection.update_one({"uid":uid}, {"$pull": {"todo" : {"id": todo_id}}}).modified_count>0
 
     def get_todo_by_user_id(self, user_id):
-        return self.collection.find_one({"uid":user_id}).sort("created_at", DESCENDING)
-    
+        todo_object = self.collection.find_one({"uid":user_id})
+        if todo_object:
+            return todo_object.get("todo")[::-1]
+        
     def get_todo_by_user_id_limited(self, user_id):
-        return self.collection.find_one({"uid":user_id}).sort("created_at", DESCENDING).limit(5)
+        todo_object = self.collection.find_one({"uid":user_id})
+        if todo_object:
+            print(todo_object.get("todo"))
+            return todo_object.get("todo")[::-1][0:3]
+        else:
+            return []
+    
+    # def get_todo_by_user_id_limited(self, user_id):
+    #     return self.collection.find_one({"uid":user_id})
     
 class Todo:
     def __init__(self, uid, todo=None, created_at=None):

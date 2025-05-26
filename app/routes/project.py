@@ -195,6 +195,8 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
         uid = get_jwt_identity()
         role = get_jwt()['user_role']
         
+        print(data['leads'])
+        
         project = Project_db.get_by_project_id(project_id)
         if not project:
             return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
@@ -205,10 +207,11 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
         team_members_ids = [team_member['id'] for team_member in team_members]
         name = project['name']
         
-        if role != 'Admin' or uid not in leads:
+        if role != 'Admin' or uid not in leads_ids:
             return jsonify({"message": "You don't have permission to edit this project. Contact the leads on this project", 'status': 'error'})
         
         updated = Project_db.update_project_details(project_id, data)
+        print(updated)
         if not updated:
             return jsonify({"message" : 'An error occurred! Try again', "status" : "danger"}), 500
         
@@ -219,6 +222,7 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
         notification = Notification(not_title, not_receivers, not_type, not_message)
         
         Notifications.send_notification(notification)
+        
         return jsonify({"message": "Project details edited successfully!", "status" : "success"}), 200
         
     except Exception as e:

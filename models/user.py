@@ -26,6 +26,9 @@ class Userdb:
     def update_dtl(self, uid, dtls):
         return self.collection.update_one({"uid":uid}, {"$set": dtls}).modified_count>0
     
+    def get_all_users(self):
+        return self.collection.find()
+    
     def get_all_users_limited(self):
         return self.collection.find().limit(4)
     
@@ -46,6 +49,9 @@ class Userdb:
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
+        
+    def unset_field(self, uid, field):
+        return self.collection.update_one({"uid": uid}, {"$unset": {field: ""}})
         
 class User:
     def __init__(self, firstname, surname, hashed_pwd, uid, stack, niche, role, phone_num, email, avatar, bio, bday, mentors=None, location=None, suspended=None, created_at=None) -> None:

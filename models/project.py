@@ -1,7 +1,7 @@
 from models import Projects
 from pymongo import DESCENDING
 from datetime import datetime
-
+from bson.objectid import ObjectId
 class Projectdb:
     def __init__(self) -> None:
         self.collection = Projects
@@ -11,6 +11,9 @@ class Projectdb:
         
     def get_all(self):
         return self.collection.find({'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING)
+    
+    def get_all_projects(self):
+        return self.collection.find()
     
     def get_all_limited(self):
         return self.collection.find({'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING).limit(4)
@@ -46,7 +49,7 @@ class Projectdb:
         return self.collection.find({"stack" : stack, 'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING)
     
     def update_project_details(self, project_id, details):
-        return self.collection.update_one({"project_id": project_id}, {"$set":details}).modified_count>0
+        return self.collection.update_one({"project_id": project_id}, {"$set": details}).modified_count>0
     
     def mark_project(self, project_id, status):
         return self.collection.update_one({"project_id":project_id},{"$set":{"status":status}}).modified_count>0
@@ -56,6 +59,12 @@ class Projectdb:
     
     def send_feedback(self, project_id, sender, feedback):
         return self.collection.update_one({"project_id":project_id}, {"$push": {"feedback":{'feedback': feedback, 'sender': sender, 'created_at': datetime.now()}}}).modified_count>0
+    
+    def update_dtls(self, project_id, dtls):
+        return self.collection.update_one({"project_id": project_id},{"$set": dtls}).modified_count>0
+    
+    def unset_field(self, project_id, field):
+        return self.collection.update_one({"project_id": project_id},{"$unset": {field: 1}}).modified_count>0
 
 class Project:
     def __init__(self, project_id, name, description, objectives, leads, team_members, stack, created_by, deadline, created_at=None, status=None, submissions=None) -> None:

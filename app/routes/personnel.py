@@ -97,16 +97,29 @@ def view_members():
 @jwt_required()
 def get_members_identity(role):
     try:
+        stack = get_jwt()['stack']
+        
         admins = list(User_db.get_user_by_role(role = "Admin"))
         leads = list(User_db.get_user_by_role(role = "Lead"))
         interns = list(User_db.get_user_by_role(role="Intern"))
         
-        admins_identity = [{"id": admin['uid'], "name": admin['fullname']} for admin in admins]
-        softleads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "software"]
-        softinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "software"]
-        hardleads = [{"id": lead['uid'], "name": lead['fullname']} for lead in leads if lead['stack'] == "hardware"]
-        hardinterns = [{"id": intern['uid'], "name": intern['fullname']} for intern in interns if intern['stack'] == "hardware"]
+        admins_identity = [{"id": admin['uid'], "name": admin['surname'] + ' ' + admin['firstname'], "avatar": admin.get('avatar', {}).get('secure_url') if admin.get('avatar') else None} for admin in admins]
         
+        softleads = [{"id": lead['uid'], "name": lead['surname'] + ' ' + lead['firstname'], "avatar": lead.get('avatar', {}).get('secure_url') if lead.get('avatar') else None} for lead in leads if lead['stack'] == "software"]
+        
+        softinterns = [{"id": intern['uid'], "name": intern['surname'] + ' ' + intern['firstname'], "avatar": intern.get('avatar', {}).get('secure_url') if intern.get('avatar') else None} for intern in interns if intern['stack'] == "software"]
+        
+        hardleads = [{"id": lead['uid'], "name": lead['surname'] + ' ' + lead['firstname'], "avatar": lead.get('avatar', {}).get('secure_url') if lead.get('avatar') else None} for lead in leads if lead['stack'] == "hardware"]
+        
+        hardinterns = [{"id": intern['uid'], "name": intern['surname'] + ' ' + intern['firstname'], "avatar": intern.get('avatar', {}).get('secure_url') if intern.get('avatar') else None} for intern in interns if intern['stack'] == "hardware"]
+        
+        if role == 'members':
+            role = f'{stack[0:4]}members'
+        elif role == 'interns':
+            role = f'{stack[0:4]}interns'
+            
+        print(role)
+                    
         if role == 'softmembers':
             response = {'members': softleads + softinterns, 'status': 'success'}
             
@@ -114,7 +127,7 @@ def get_members_identity(role):
             response = {'members': hardleads + hardinterns, 'status': 'success'}
             
         elif role == 'allmembers':
-            response = {'members': admins_identity + softleads + softinterns + hardleads + hardinterns, 'status': 'success'}
+            response = {'members': softleads + softinterns + hardleads + hardinterns, 'status': 'success'}
             
         elif role == 'admins':
             response = {'members': admins_identity, 'status': 'success'}
@@ -169,7 +182,7 @@ def create_user():
         print(data)
         
         firstname = data.get("firstname")
-        surname = data.get("surname")
+        surname = data.get("lastname")
         pwd = generate.password()
         hashed_pwd = generate_password_hash(pwd)
         stack = data.get("stack")
