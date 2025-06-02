@@ -195,7 +195,7 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
         uid = get_jwt_identity()
         role = get_jwt()['user_role']
         
-        print(data['leads'])
+        print(data)
         
         project = Project_db.get_by_project_id(project_id)
         if not project:
@@ -207,8 +207,11 @@ def edit_project(project_id): # Name, description, objectives, team_members, lea
         team_members_ids = [team_member['id'] for team_member in team_members]
         name = project['name']
         
-        if role != 'Admin' or uid not in leads_ids:
-            return jsonify({"message": "You don't have permission to edit this project. Contact the leads on this project", 'status': 'error'})
+        is_lead = uid in leads_ids
+        is_admin = role == 'Admin'
+        
+        if not is_admin and not is_lead:
+            return jsonify({"message": "You don't have permission to edit this project. Contact the leads on this project", 'status': 'error'}), 401
         
         updated = Project_db.update_project_details(project_id, data)
         print(updated)
@@ -269,6 +272,7 @@ def submit_project_doc(project_id):
             return jsonify({"message": f"Project with ID '{project_id}' not found", "status": "error"}), 404
         
         submission = request.files["doc"]
+        print(submission)
         filename = secure_filename(submission.filename)
         
         if not submission:
@@ -312,7 +316,7 @@ def submit_project_doc(project_id):
     
         Notifications.send_notification(notification)
         
-        return jsonify({"message": "Document submitted successfully", "status" : "success"}), 200
+        return jsonify({"message": "Document submitted successfully", "status" : "success", "submission": project_submission}), 200
         
     except Exception as e:
         return jsonify(return_error(e)), 500

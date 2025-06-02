@@ -49,6 +49,7 @@ class Projectdb:
         return self.collection.find({"stack" : stack, 'deleted_at': {'$exists': False}}).sort("created_at", DESCENDING)
     
     def update_project_details(self, project_id, details):
+        print(f"Updating {project_id}")
         return self.collection.update_one({"project_id": project_id}, {"$set": details}).modified_count>0
     
     def mark_project(self, project_id, status):

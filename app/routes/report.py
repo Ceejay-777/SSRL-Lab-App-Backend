@@ -120,6 +120,10 @@ def get_one(report_id):
 @admin_and_lead_role_required
 def give_feedback(report_id):
     try:
+        uid = get_jwt_identity()
+        user = User_db.get_user_by_uid(uid)
+        sender = user['surname'] + ' ' + user['firsname']
+        
         feedback = request.json.get("feedback")
         
         report = Report_db.get_by_report_id(report_id)
@@ -128,7 +132,7 @@ def give_feedback(report_id):
         
         title = report.get('title')
         sender_id = report.get('sender').get('id')
-        feedback_dtls = {"feedback": feedback, "created_at": datetime.now()}
+        feedback_dtls = {"feedback": feedback, "created_at": datetime.now(), 'sender': sender}
         
         submitted = Report_db.give_feedback(report_id, feedback_dtls)
         if not submitted: 

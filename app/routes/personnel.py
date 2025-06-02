@@ -118,8 +118,6 @@ def get_members_identity(role):
         elif role == 'interns':
             role = f'{stack[0:4]}interns'
             
-        print(role)
-                    
         if role == 'softmembers':
             response = {'members': softleads + softinterns, 'status': 'success'}
             
