@@ -46,7 +46,7 @@ class Reportdb:
         return self.collection.update_one({"report_id":report_id},{"$push":{"submissions.links": link}}).modified_count>0
     
 class Report:
-    def __init__(self, report_id, title, stack, report_type, receiver, sender, report_details, submissions=None, feedback=None, created_at=None):
+    def __init__(self, report_id, title, stack, report_type, receivers, sender, report_details, submissions=None, feedback=None, created_at=None):
         self.report_id = report_id
         self.title = title 
         self.stack = stack 
@@ -54,6 +54,6 @@ class Report:
         self.submissions = submissions or {"docs": [], "links": []}
         self.feedback = feedback or []
         self.created_at = created_at or datetime.now()
-        self.receiver = receiver
+        self.receivers = receivers
         self.sender = sender
         self.report_details = report_details

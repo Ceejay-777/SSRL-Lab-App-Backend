@@ -416,7 +416,7 @@ def update_email():
         user_profile = User_db.get_user_by_oid(id)
         
         authenticated = check_password_hash(user_profile["hashed_pwd"], pwd)
-        
+            
         if authenticated:
             if new_email == confirm_email:
                 dtls = updateEmail(new_email)

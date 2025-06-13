@@ -36,10 +36,9 @@ def create_report():
         sender = {'id':uid, 'name':name, 'avatar': avatar}
         
         data = request.json
-        print(data)
         report_type = data.get('report_type')
         title = data.get('title')
-        receiver = data.get('receiver')
+        receivers = data.get('receivers')
         
         if report_type == "activity":
             duration = data.get('duration') 
@@ -60,14 +59,16 @@ def create_report():
             if not Report_db.get_by_report_id(report_id):
                 break
         
-        report = Report(report_type=report_type, title=title, sender=sender, receiver=receiver, report_details=report_details, stack=stack, report_id=report_id)
+        report = Report(report_type=report_type, title=title, sender=sender, receivers=receivers, report_details=report_details, stack=stack, report_id=report_id)
         
         report_created = Report_db.create_report(report)
         if not report_created:
             return jsonify({"message": "Failed to create report", "status": "error"}), 500
         
+        receiver_ids = [receiver['id'] for receiver in receivers]
+        
         not_title = "Report Submission"
-        not_receivers = receiver
+        not_receivers = receiver_ids
         not_type = "Report"
         not_message = f"You have received a new report from {uid}. Check it out in your reports tab!"
         notification = Notification(not_title, not_receivers, not_type, not_message)

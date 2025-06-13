@@ -150,7 +150,8 @@ def get_members_identity(role):
             
         else:
             response = {'message': 'Invalid role', 'status': 'error'}
-        
+            return jsonify(convert_to_json_serializable(response)), 401
+            
         return jsonify(convert_to_json_serializable(response)), 200
     
     except Exception as e:
